@@ -13,8 +13,8 @@ This is the official repository for the MGCAMB patch. Below is an introduction t
     - [Citing MGCAMB](#citing-mgcamb)
   - [2. How to install](#2-how-to-install)
   - [3. How to run](#3-how-to-run)
-  - [5. Known issues](#5-known-issues)
-  - [6. Authors List](#6-authors-list)
+  - [4. Known issues](#4-known-issues)
+  - [5. Authors List](#5-authors-list)
 
 
 
@@ -92,12 +92,12 @@ To run MGCAMB, first modify the  [``` params_MG.ini ``` ](inifiles/params_MG.ini
   
 The MG and DE parametrizations along with the computation of the quantities related to the perturbations are introduced in the file [``` mgcamb.f90 ```](fortran/mgcamb.f90).
 
-## 5. Known issues
+## 4. Known issues
 - The debug mode (`make Debug`) is not well-tested yet. Please run the code using the normal option described in sections [2](#2-how-to-install) and [3](#3-how-to-install) .
 - The model of effective Newton's constant (``mugamma_par = 3``) is not fully developed. 
 
 
-## 6. Authors List
+## 5. Authors List
 Main Developers:
 - Zhuangfei Wang (Email: zhuangfei_wang@sfu.ca)
 - Alex Zucca (Email: alexzucca90@gmail.com)
