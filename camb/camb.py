@@ -155,6 +155,7 @@ def set_params(cp=None, verbose=False, **params):
     do_set(cp.set_classes)
     do_set(cp.DarkEnergy.set_params)
     do_set(cp.Reion.set_extra_params)
+    do_set(cp.set_mgparams)
     do_set(cp.set_cosmology)
     do_set(cp.set_matter_power)
     do_set(cp.set_for_lmax)
