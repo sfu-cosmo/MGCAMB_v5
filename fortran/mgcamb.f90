@@ -73,7 +73,7 @@ module MGCAMB
 	logical :: MGDE_const = .True.
     logical :: MGDE_pert = .False.
 
-    character(len=(10)) :: MGCAMB_version = 'v 4.0'
+    !character(len=(10)) :: MGCAMB_version = 'v 4.0'
 
 
 ! =============MGXrecon=============
@@ -2708,7 +2708,7 @@ contains
         write(*,'(a)') "     __  _________  ________   __  ______  "
         write(*,'(a)') "    /  \/  / ____/ / ___/ _ | /  |/  / _ ) "
         write(*,'(a)') "   / /\_/ / /_,-, / /__/ __ |/ /|_/ / _  | "
-        write(*,'(a)') "  /_/  /_/_____/  \___/_/ |_/_/  /_/____/  "//" "//MGCAMB_version
+        write(*,'(a)') "  /_/  /_/_____/  \___/_/ |_/_/  /_/____/  "
         write(*,'(a)') "  "
         write(*,'(a)') "        Modified Growth with CAMB "
         write(*,'(a)') "  "

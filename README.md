@@ -77,7 +77,7 @@ as well as the original CAMB [paper](http://arxiv.org/abs/astro-ph/9911177) and 
 ## 2. How to install
 To install MGCAMB on your machine, simply run
 ```bash
-git clone https://github.com/sfu-cosmo/MGCAMB.git
+git clone --recursive https://github.com/sfu-cosmo/MGCAMB.git
 cd MGCAMB/fortran/
 make 
 ```
