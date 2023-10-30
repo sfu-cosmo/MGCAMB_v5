@@ -52,15 +52,24 @@
 
     subroutine TDarkEnergyPPF_Init(this, State)
     use classes
+	use MGCAMB
     class(TDarkEnergyPPF), intent(inout) :: this
     class(TCAMBdata), intent(in), target :: State
 
     call this%TDarkEnergyEqnOfState%Init(State)
-    if (this%is_cosmological_constant) then
-        this%num_perturb_equations = 0
-    else
-        this%num_perturb_equations = 1
-    end if
+	if(MG_flag==0) then
+        if (this%is_cosmological_constant) then
+            this%num_perturb_equations = 0
+        else
+            this%num_perturb_equations = 1
+        end if
+	else
+		if (MGDE_const) then
+			this%num_perturb_equations = 0
+		else
+			this%num_perturb_equations = 1
+		end if
+	end if
 
     end subroutine TDarkEnergyPPF_Init
 

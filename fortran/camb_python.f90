@@ -575,7 +575,7 @@
     real(dl) c(24),w(EV%nvar,9), y(EV%nvar), cs2, opacity
     real(dl) yprime(EV%nvar), ddelta, delta, adotoa,growth, a
     real(dl), target :: sources(nsources), custom_sources(ncustomsources)
-    real, target :: Arr(Transfer_max)
+    real(dl), target :: Arr(Transfer_max)
     procedure(obj_function) :: dtauda
 
     w=0

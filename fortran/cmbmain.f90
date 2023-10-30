@@ -113,6 +113,7 @@
 
     integer n_source_points ! number of CL source wavenumbers (for use when calculted remaining non-CL transfers)
 
+
     procedure(obj_function), private :: dtauda
 
     public cmbmain, TimeSourcesToCl, ClTransferToCl, InitVars, GetTauStart !InitVars for BAO hack
@@ -121,6 +122,9 @@
 
 
     subroutine cmbmain
+    !> MGCAMB MOD START
+    use MGCAMB
+    !< MGCAMB MOD END
     integer q_ix
     type(EvolutionVars) EV
     Type(TTimer) :: Timer
@@ -173,6 +177,13 @@
 
     if (CP%WantTransfer) call InitTransfer
 
+    !> MGCAMB MOD START
+    if ( DebugMGCAMB ) then
+        write(*,*) 'Writing cache on files'
+        call MGCAMB_open_cache_files
+    end if
+    !< MGCAMB MOD END
+
     !***note that !$ is the prefix for conditional multi-processor compilation***
     !$ if (ThreadNum /=0) call OMP_SET_NUM_THREADS(ThreadNum)
 
@@ -199,9 +210,17 @@
         end do
         !$OMP END PARALLEL DO
 
+
         if (DebugMsgs .and. Feedbacklevel > 0) call Timer%WriteTime('Timing for source calculation')
 
     endif !WantCls
+
+    !> MGCAMB MOD START
+    if ( DebugMGCAMB ) then
+        write(*,*) 'closing cache files'
+        call MGCAMB_close_cache_files
+    end if
+    !< MGCMAB MOD END
 
     ! If transfer functions are requested, set remaining k values and output
     if (CP%WantTransfer .and. global_error_flag==0) then
@@ -732,6 +751,7 @@
     if (CP%WantTensors .and. global_error_flag==0) call CalcTensorSources(EV,taustart)
 
     end subroutine DoSourcek
+    
 
     subroutine GetSourceMem
     integer :: err

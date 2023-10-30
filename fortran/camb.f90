@@ -51,6 +51,10 @@
     use CAMBmain
     use lensing
     use Bispectrum
+    !> MGCAMB MOD START
+	use MGCAMB
+	!< MGCAMB MOD END
+
     type(CAMBdata)  :: OutData
     type(CAMBparams) :: Params
     integer, optional :: error !Zero if OK
@@ -242,6 +246,10 @@
     use DarkEnergyPPF
     use Quintessence
     use results
+    !> MGCAMB MOD START
+    use MGCAMB
+    use constants
+    !< MGCAMB MOD END
 #ifdef COSMOREC
     use CosmoRec
 #endif
@@ -257,7 +265,9 @@
     character(LEN=*), intent(inout) :: ErrMsg
     character(LEN=:), allocatable :: NumStr, S, DarkEneryModel, RecombinationModel
     logical :: DoCounts
-
+    !> MGCAMB MOD START
+    character(len=:), allocatable :: outroot
+    !< MGCAMB MOD END
     CAMB_ReadParams = .false.
     call CAMB_SetDefParams(P)
 
@@ -403,10 +413,14 @@
     !  Read initial parameters.
     DarkEneryModel = UpperCase(Ini%Read_String_Default('dark_energy_model', 'fluid'))
     if (allocated(P%DarkEnergy)) deallocate(P%DarkEnergy)
-    if (DarkEneryModel == 'FLUID') then
+	!> MGCAMB MOD START
+    if ((DarkEneryModel == 'FLUID' .and. MG_flag == 0) .or.  &
+		(MG_flag /= 0 .and. (DE_model == 0 .or. DE_model == 1 .or. DE_model == 3))) then
         allocate (TDarkEnergyFluid::P%DarkEnergy)
-    else if (DarkEneryModel == 'PPF') then
+    else if ((DarkEneryModel == 'PPF' .and. MG_flag == 0) .or. &
+		(MG_flag /= 0 .and. DE_model == 2)) then
         allocate (TDarkEnergyPPF::P%DarkEnergy)
+	!< MGCAMB MOD END
     else if (DarkEneryModel == 'AXIONEFFECTIVEFLUID') then
         allocate (TAxionEffectiveFluid::P%DarkEnergy)
     else if (DarkEneryModel == 'EARLYQUINTESSENCE') then
@@ -428,6 +442,21 @@
         ErrMsg = 'use_physical = F no longer supported. Use ombh2, omch2, omnuh2, omk'
         return
     end if
+
+    !> MGCAMB MOD START
+    outroot = Ini%Read_String('output_root')
+
+    mgcamb_par_cache%omegab = P%ombh2/(P%H0/100)**2
+    mgcamb_par_cache%omegac = P%omch2/(P%H0/100)**2
+    mgcamb_par_cache%h0     = P%H0
+    mgcamb_par_cache%h0_Mpc = P%H0 * (1.d3/c)
+    mgcamb_par_cache%output_root = outroot
+    !< MGCAMB MOD END
+
+    !> MGCAMB MOD START: reading models and params
+    call MGCAMB_read_model_params( mgcamb_par_cache, Ini )
+    !< MGCAMB MOD END
+
 
     P%tcmb = Ini%Read_Double('temp_cmb', COBE_CMBTemp)
     P%yhe = Ini%Read_Double('helium_fraction', 0.24_dl)
@@ -815,7 +844,17 @@
 
     highL_unlensed_cl_template = Ini%Read_String_Default( &
         'highL_unlensed_cl_template', highL_unlensed_cl_template)
+
+!> MGCAMB MOD START: suppress parallelization in debug
+#ifdef DEBUG
+    ! set serial execution, problems creating the files otherwise.
+    ThreadNum      = 1
+#else
+    ! normal operations:
     call Ini%Read('number_of_threads', ThreadNum)
+#endif
+!< MGCAMB MOD END.
+ !   call Ini%Read('number_of_threads', ThreadNum)
     call Ini%Read('DebugParam', DebugParam)
     call Ini%Read('feedback_level', FeedbackLevel)
     if (Ini%HasKey('DebugMsgs')) call Ini%Read('DebugMsgs', DebugMsgs)

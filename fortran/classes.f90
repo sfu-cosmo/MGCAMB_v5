@@ -11,7 +11,7 @@
         real(dl), dimension (:), allocatable :: q_trans
         real(dl), dimension (:), allocatable ::  sigma_8
         real(dl), dimension (:), allocatable ::  sigma2_vdelta_8 !growth from sigma_{v delta}
-        real, dimension(:,:,:), allocatable :: TransferData
+        real(dl), dimension(:,:,:), allocatable :: TransferData
         !TransferData(entry,k_index,z_index) for entry=Tranfer_kh.. Transfer_tot
     contains
     procedure :: Free => MatterTransferData_Free

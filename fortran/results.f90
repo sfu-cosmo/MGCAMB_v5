@@ -309,6 +309,9 @@
     subroutine CAMBdata_SetParams(this, P, error, DoReion, call_again, background_only)
     !Initialize background variables; does not yet calculate thermal history
     use constants
+    !>MGCAMB MOD START
+    use MGCAMB
+    !> MGCAMB MOD END
     class(CAMBdata), target :: this
     type(CAMBparams), intent(in) :: P
     real(dl) fractional_number, conv
@@ -458,6 +461,27 @@
         this%Omega_de = 1 -(this%CP%omch2 + this%CP%ombh2 + this%CP%omnuh2)/h2 - this%CP%omk  &
             - (this%grhornomass + this%grhog)/this%grhocrit
         this%grhov=this%grhocrit*this%Omega_de
+
+        !> MGCAMB MOD START
+		mgcamb_par_cache%omegav = this%Omega_de
+        
+        !fix last node of X_arr when running from fortran 
+        if(.not. P%MG_wrapped) then
+            if(DE_model == 3) then 
+                X_arr(2*nnode) = mgcamb_par_cache%omegav
+            end if 
+        end if
+
+        if(P%MG_wrapped) then
+            call MGCAMB_read_in_MGparams(P)
+        end if 
+        if (MG_flag == 1 .or. MG_flag == 5 .or. MG_flag == 6) then
+            call reconstruction_arr
+        end if
+        if(MG_flag /= 0) then
+            call MGCAMB_DE_perturb
+        end if
+		!> MGCAMB MOD END
 
         !  adotrad gives da/dtau in the asymptotic radiation-dominated era:
         this%adotrad = sqrt((this%grhog+this%grhornomass+sum(this%grhormass(1:this%CP%Nu_mass_eigenstates)))/3)
@@ -3853,7 +3877,10 @@
                 columns = ['P   ', 'P_vd','P_vv']
                 unit = open_file_header(FileNames(itf), 'k/h', columns(:ncol), 15)
                 do i=1,points
-                    write (unit, '(*(E15.6))') MTrans%TransferData(Transfer_kh,i,1),outpower(i,:)
+                    !> MGCAMB MOD START: increasing number of decimal points for accuracy tests
+                    write (unit, '(*(E15.8))') MTrans%TransferData(Transfer_kh,i,1),outpower(i,:)
+                    ! write (unit, '(*(E15.6))') MTrans%TransferData(Transfer_kh,i,1),outpower(i,:)
+                    !< MGCAMB MOD END
                 end do
                 close(unit)
             else
@@ -3869,7 +3896,10 @@
                 unit = open_file_header(FileNames(itf), 'k/h', columns(:1), 15)
 
                 do i=1,points
-                    write (unit, '(*(E15.6))') minkh*exp((i-1)*dlnkh),outpower(i,1)
+                   !> MGCAMB MOD START: increasing number of decimal points for accuracy tests
+                    write (unit, '(*(E15.8))') minkh*exp((i-1)*dlnkh),outpower(i,1)
+                   ! write (unit, '(*(E15.6))') minkh*exp((i-1)*dlnkh),outpower(i,1)
+                   !< MGCAMB MOD END
                 end do
                 close(unit)
             end if
