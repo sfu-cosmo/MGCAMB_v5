@@ -29,7 +29,7 @@ DLL_DIR ?= Releaselib
 CAMBLIB       = libcamb.a
 
 SOURCEFILES      =  constants config classes MathUtils subroutines DarkAge21cm \
-        DarkEnergyInterface SourceWindows massive_neutrinos model mgcamb results bessels \
+        DarkEnergyInterface SourceWindows massive_neutrinos model ModGravityInterface mgcamb results bessels \
         $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations_MG \
         $(REIONIZATION_FILES) $(POWERSPECTRUM_FILES) $(NONLINEAR_FILES) \
         lensing $(BISPECTRUM) cmbmain camb camb_python

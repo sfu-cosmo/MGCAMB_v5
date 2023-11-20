@@ -1,6 +1,7 @@
 module MGCAMB
     use precision
     use splines
+    use ModGravityInterface
 
     ! new model selection flags
     integer :: MG_flag
@@ -2007,107 +2008,107 @@ contains
 
 		type(CAMBparams) :: CP
 
-        MG_flag = CP%MG_flag
-        pure_MG_flag = CP%pure_MG_flag
-        alt_MG_flag = CP%alt_MG_flag
-        QSA_flag = CP%QSA_flag
-        mugamma_par  = CP%mugamma_par
-        muSigma_par  = CP%muSigma_par
-        QR_par = CP%QR_par
-        muSigma_flag = CP%muSigma_flag
-        CDM_flag  = CP%CDM_flag
+        MG_flag = CP%ModGravity%MG_flag
+        pure_MG_flag = CP%ModGravity%pure_MG_flag
+        alt_MG_flag = CP%ModGravity%alt_MG_flag
+        QSA_flag = CP%ModGravity%QSA_flag
+        mugamma_par  = CP%ModGravity%mugamma_par
+        muSigma_par  = CP%ModGravity%muSigma_par
+        QR_par = CP%ModGravity%QR_par
+        muSigma_flag = CP%ModGravity%muSigma_flag
+        CDM_flag  = CP%ModGravity%CDM_flag
 
-        DE_model = CP%DE_model
+        DE_model = CP%ModGravity%DE_model
 
-        GRtrans = CP%GRtrans                
+        GRtrans = CP%ModGravity%GRtrans                
 
         ! BZ parametrization (and QS f(R))
-        B1 =  CP%B1
-        B2 =  CP%B2
-        lambda1_2 =  CP%lambda1_2
-        lambda2_2 = CP%lambda2_2
-        ss = CP%ss
+        B1 =  CP%ModGravity%B1
+        B2 =  CP%ModGravity%B2
+        lambda1_2 =  CP%ModGravity%lambda1_2
+        lambda2_2 = CP%ModGravity%lambda2_2
+        ss = CP%ModGravity%ss
 
         ! Planck Parametrization
-        E11 = CP%E11
-        E22 = CP%E22
+        E11 = CP%ModGravity%E11
+        E22 = CP%ModGravity%E22
 
         ! Q-R parametrization 1
-        MGQfix = CP%MGQfix
-        MGRfix = CP%MGRfix
+        MGQfix = CP%ModGravity%MGQfix
+        MGRfix = CP%ModGravity%MGRfix
 
         ! Q-R parametrization 2
-        Qnot = CP%Qnot
-        Rnot = CP%Rnot
-        sss = CP%sss
+        Qnot = CP%ModGravity%Qnot
+        Rnot = CP%ModGravity%Rnot
+        sss = CP%ModGravity%sss
 
         ! Growth rate gamma
-        Linder_gamma = CP%Linder_gamma
+        Linder_gamma = CP%ModGravity%Linder_gamma
 
         ! Symmetron
-        beta_star = CP%beta_star
-        a_star  = CP%a_star
-        xi_star = CP%xi_star
+        beta_star = CP%ModGravity%beta_star
+        a_star  = CP%ModGravity%a_star
+        xi_star = CP%ModGravity%xi_star
 
         ! Dilaton
-        beta0 = CP%beta0
-        xi0 = CP%xi0
-        DilR = CP%DilR
-        DilS = CP%DilS
+        beta0 = CP%ModGravity%beta0
+        xi0 = CP%ModGravity%xi0
+        DilR = CP%ModGravity%DilR
+        DilS = CP%ModGravity%DilS
 
         ! Hu-Sawicki f(R) gravity
-        F_R0 = CP%F_R0
-        FRn = CP%FRn
+        F_R0 = CP%ModGravity%F_R0
+        FRn = CP%ModGravity%FRn
 
         ! DES parametrization
-        mu0 = CP%mu0
-        sigma0 = CP%sigma0
+        mu0 = CP%ModGravity%mu0
+        sigma0 = CP%ModGravity%sigma0
 
         ! effective Newton's constant 
-        ga = CP%ga
-        nn = CP%nn
+        ga = CP%ModGravity%ga
+        nn = CP%ModGravity%nn
 
         ! DE model parameters
-        w0DE = CP%w0DE             !< w0 parameters for DE
-        waDE = CP%waDE             !< waDE parameters for DE
+        w0DE = CP%ModGravity%w0DE             !< w0 parameters for DE
+        waDE = CP%ModGravity%waDE             !< waDE parameters for DE
 
         !DE pertubations
-        MGDE_pert = CP%MGDE_pert
+        MGDE_pert = CP%ModGravity%MGDE_pert
 
         !reconstruction model parameters
-		mu_arr(10) =  CP%MGCAMB_Mu_idx_1
-		mu_arr(11) =  CP%MGCAMB_Mu_idx_2
-		mu_arr(12) =  CP%MGCAMB_Mu_idx_3
-		mu_arr(13) =  CP%MGCAMB_Mu_idx_4
-		mu_arr(14) =  CP%MGCAMB_Mu_idx_5
-		mu_arr(15) =  CP%MGCAMB_Mu_idx_6
-		mu_arr(16) =  CP%MGCAMB_Mu_idx_7
-		mu_arr(17) =  CP%MGCAMB_Mu_idx_8
-		mu_arr(18) =  CP%MGCAMB_Mu_idx_9
-		mu_arr(19) =  CP%MGCAMB_Mu_idx_10
-		mu_arr(20) =  CP%MGCAMB_Mu_idx_11
-		Sigma_arr(10) =  CP%MGCAMB_Sigma_idx_1
-		Sigma_arr(11) =  CP%MGCAMB_Sigma_idx_2
-		Sigma_arr(12) =  CP%MGCAMB_Sigma_idx_3
-		Sigma_arr(13) =  CP%MGCAMB_Sigma_idx_4
-		Sigma_arr(14) =  CP%MGCAMB_Sigma_idx_5
-		Sigma_arr(15) =  CP%MGCAMB_Sigma_idx_6
-		Sigma_arr(16) =  CP%MGCAMB_Sigma_idx_7
-		Sigma_arr(17) =  CP%MGCAMB_Sigma_idx_8
-		Sigma_arr(18) =  CP%MGCAMB_Sigma_idx_9
-		Sigma_arr(19) =  CP%MGCAMB_Sigma_idx_10
-		Sigma_arr(20) =  CP%MGCAMB_Sigma_idx_11
-		X_arr(10) =  CP%Funcofw_1
-		X_arr(11) =  CP%Funcofw_2
-		X_arr(12) =  CP%Funcofw_3
-		X_arr(13) =  CP%Funcofw_4
-		X_arr(14) =  CP%Funcofw_5
-		X_arr(15) =  CP%Funcofw_6
-		X_arr(16) =  CP%Funcofw_7
-		X_arr(17) =  CP%Funcofw_8
-		X_arr(18) =  CP%Funcofw_9
-		X_arr(19) =  CP%Funcofw_10
-		X_arr(20) =  CP%Funcofw_11
+		mu_arr(10) =  CP%ModGravity%MGCAMB_Mu_idx_1
+		mu_arr(11) =  CP%ModGravity%MGCAMB_Mu_idx_2
+		mu_arr(12) =  CP%ModGravity%MGCAMB_Mu_idx_3
+		mu_arr(13) =  CP%ModGravity%MGCAMB_Mu_idx_4
+		mu_arr(14) =  CP%ModGravity%MGCAMB_Mu_idx_5
+		mu_arr(15) =  CP%ModGravity%MGCAMB_Mu_idx_6
+		mu_arr(16) =  CP%ModGravity%MGCAMB_Mu_idx_7
+		mu_arr(17) =  CP%ModGravity%MGCAMB_Mu_idx_8
+		mu_arr(18) =  CP%ModGravity%MGCAMB_Mu_idx_9
+		mu_arr(19) =  CP%ModGravity%MGCAMB_Mu_idx_10
+		mu_arr(20) =  CP%ModGravity%MGCAMB_Mu_idx_11
+		Sigma_arr(10) =  CP%ModGravity%MGCAMB_Sigma_idx_1
+		Sigma_arr(11) =  CP%ModGravity%MGCAMB_Sigma_idx_2
+		Sigma_arr(12) =  CP%ModGravity%MGCAMB_Sigma_idx_3
+		Sigma_arr(13) =  CP%ModGravity%MGCAMB_Sigma_idx_4
+		Sigma_arr(14) =  CP%ModGravity%MGCAMB_Sigma_idx_5
+		Sigma_arr(15) =  CP%ModGravity%MGCAMB_Sigma_idx_6
+		Sigma_arr(16) =  CP%ModGravity%MGCAMB_Sigma_idx_7
+		Sigma_arr(17) =  CP%ModGravity%MGCAMB_Sigma_idx_8
+		Sigma_arr(18) =  CP%ModGravity%MGCAMB_Sigma_idx_9
+		Sigma_arr(19) =  CP%ModGravity%MGCAMB_Sigma_idx_10
+		Sigma_arr(20) =  CP%ModGravity%MGCAMB_Sigma_idx_11
+		X_arr(10) =  CP%ModGravity%Funcofw_1
+		X_arr(11) =  CP%ModGravity%Funcofw_2
+		X_arr(12) =  CP%ModGravity%Funcofw_3
+		X_arr(13) =  CP%ModGravity%Funcofw_4
+		X_arr(14) =  CP%ModGravity%Funcofw_5
+		X_arr(15) =  CP%ModGravity%Funcofw_6
+		X_arr(16) =  CP%ModGravity%Funcofw_7
+		X_arr(17) =  CP%ModGravity%Funcofw_8
+		X_arr(18) =  CP%ModGravity%Funcofw_9
+		X_arr(19) =  CP%ModGravity%Funcofw_10
+		X_arr(20) =  CP%ModGravity%Funcofw_11
 
 		mgcamb_par_cache%omegab = CP%ombh2/(CP%H0/100)**2
 		mgcamb_par_cache%omegac = CP%omch2/(CP%H0/100)**2
@@ -2136,7 +2137,7 @@ contains
 				end if
 				if ( QSA_flag ==  1 ) then
 					B1 = 4._dl/3._dl
-					lambda1_2= CP%B0 ! it is considered as the B0 parameter here
+					lambda1_2= CP%ModGravity%B0 ! it is considered as the B0 parameter here
 					lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mgcamb_par_cache%H0**2)
 					B2 = 0.5d0
 					lambda2_2 = B1* lambda1_2

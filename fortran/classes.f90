@@ -86,6 +86,13 @@
     procedure :: GetNonLinRatios_All => TNonLinearModel_GetNonLinRatios_All
     end type TNonLinearModel
 
+    !> MGCAMB MOD START
+    type, extends(TCambComponent) :: TModGravModel
+    contains
+    procedure :: Init => TModGravModel_Init
+    end type TModGravModel
+    !> MGCAMB MOD END
+
     type, extends(TCambComponent) :: TInitialPower
     contains
     procedure :: ScalarPower => TInitialPower_ScalarPower
@@ -189,6 +196,12 @@
     error stop 'GetNonLinRatios_all  not supported (no non-linear velocities)'
     end subroutine TNonLinearModel_GetNonLinRatios_All
 
+    !> MGCAMB MOD START
+    subroutine TModGravModel_Init(this, Params)
+        class(TModGravModel) :: this
+        class(TCAMBParameters), intent(in) :: Params
+    end subroutine TModGravModel_Init
+    !> MGCAMB MOD END
 
     function TInitialPower_ScalarPower(this, k)
     class(TInitialPower) :: this

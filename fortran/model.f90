@@ -151,6 +151,7 @@
         class(TRecombinationModel), allocatable :: Recomb
         class(TReionizationModel), allocatable :: Reion
         class(TDarkEnergyModel), allocatable :: DarkEnergy
+        class(TModGravModel), allocatable :: ModGravity
         class(TNonLinearModel), allocatable :: NonLinearModel
         type(AccuracyParams)     :: Accuracy
         type(SourceTermParams)   :: SourceTerms
@@ -189,83 +190,6 @@
 
         Type(TCustomSourceParams) :: CustomSources
 
-        !--MGCAMB MOD START
-        logical :: MG_wrapped = .False.
-        integer :: MG_flag = 0
-		real(dl):: GRtrans = 0.001
-        integer :: pure_MG_flag = 1
-        integer :: alt_MG_flag = 1
-        integer :: QSA_flag = 1
-        integer :: CDM_flag = 1
-        integer :: muSigma_flag = 1
-        integer :: mugamma_par = 1
-        real(dl):: B1 = 1.333d0
-        real(dl):: lambda1_2  = 1000
-        real(dl):: B2 = 0.5
-        real(dl):: lambda2_2 = 1000
-        real(dl):: ss = 4
-        real(dl):: E11 = 1.0d0
-        real(dl):: E22 = 1.0d0
-        real(dl):: ga = 0.5
-        real(dl):: nn = 2
-		integer :: musigma_par = 1
-        real(dl):: mu0 = 0.d0
-		real(dl):: sigma0 = 0.d0
-        integer :: QR_par = 1
-        real(dl):: MGQfix = 1
-        real(dl):: MGRfix = 1
-        real(dl):: Qnot = 1.d0
-        real(dl):: Rnot= 1.d0
-        real(dl):: sss = 0
-		real(dl):: Linder_gamma = 0.545
-        real(dl):: B0 = 1.d-3
-        real(dl):: beta_star  = 1.0
-        real(dl):: a_star = 0.5 
-        real(dl):: xi_star = 1.d-3
-        real(dl):: beta0 = 1.d0
-        real(dl):: xi0 = 1.d-4
-        real(dl):: DilS = 0.24d0
-        real(dl):: DilR = 1.d0
-        real(dl):: F_R0 = 1.d-4
-        real(dl):: FRn = 1.d0
-        integer :: DE_model  = 0
-        real(dl):: w0DE = -1.d0
-        real(dl):: waDE = 0.d0
-        logical :: MGDE_pert = .False.
-        real(dl):: MGCAMB_Mu_idx_1 = 1.d0
-        real(dl):: MGCAMB_Mu_idx_2 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_3 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_4 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_5 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_6 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_7 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_8 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_9 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_10 = 1.0d0
-        real(dl):: MGCAMB_Mu_idx_11 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_1 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_2 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_3 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_4 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_5 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_6 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_7 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_8 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_9 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_10 = 1.0d0
-        real(dl):: MGCAMB_Sigma_idx_11 = 1.0d0
-        real(dl):: Funcofw_1 = 0.7d0
-        real(dl):: Funcofw_2 = 0.7d0
-        real(dl):: Funcofw_3 = 0.7d0
-        real(dl):: Funcofw_4 = 0.7d0
-        real(dl):: Funcofw_5= 0.7d0
-        real(dl):: Funcofw_6= 0.7d0
-        real(dl):: Funcofw_7= 0.7d0
-        real(dl):: Funcofw_8= 0.7d0
-        real(dl):: Funcofw_9= 0.7d0
-        real(dl):: Funcofw_10= 0.7d0
-        real(dl):: Funcofw_11= 0.7d0
-        !>MGCAMB MOD END
 
     contains
     procedure, nopass :: PythonClass => CAMBparams_PythonClass
@@ -467,6 +391,9 @@
         write(*,*) 'You need Max_eta_k larger than Max_l to get good results'
     end if
 
+    !!--MGCAMB MOD START
+    !call this%ModGravity%Validate(OK)
+    !!--MGCAMB MOD END
     call this%Reion%Validate(OK)
     call this%Recomb%Validate(OK)
 
