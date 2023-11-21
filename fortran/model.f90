@@ -151,7 +151,7 @@
         class(TRecombinationModel), allocatable :: Recomb
         class(TReionizationModel), allocatable :: Reion
         class(TDarkEnergyModel), allocatable :: DarkEnergy
-        class(TModGravModel), allocatable :: ModGravity
+        class(TModGravityModel), allocatable :: ModGravity
         class(TNonLinearModel), allocatable :: NonLinearModel
         type(AccuracyParams)     :: Accuracy
         type(SourceTermParams)   :: SourceTerms

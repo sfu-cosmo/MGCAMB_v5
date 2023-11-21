@@ -87,7 +87,7 @@
     end type TNonLinearModel
 
     !> MGCAMB MOD START
-    type, extends(TCambComponent) :: TModGravModel
+    type, extends(TCambComponent) :: TModGravityModel
 
         logical :: MG_wrapped = .False.
         integer :: MG_flag = 0
@@ -167,13 +167,13 @@
 
         contains
 
-        procedure :: Init => TModGravModel_Init
+        procedure :: Init => TModGravityModel_Init
         !procedure :: ReadParams => MGCAMB_read_in_MGparams
-        procedure, nopass :: PythonClass => TModGravModel_PythonClass
-        procedure, nopass :: SelfPointer => TModGravModel_SelfPointer
-        !procedure :: Validate => TModGravModel_Validate
+        procedure, nopass :: PythonClass => TModGravityModel_PythonClass
+        procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
+        !procedure :: Validate => TModGravityModel_Validate
 
-    end type TModGravModel
+    end type TModGravityModel
     !< MGCAMB MOD END
 
     type, extends(TCambComponent) :: TInitialPower
@@ -280,24 +280,24 @@
     end subroutine TNonLinearModel_GetNonLinRatios_All
 
     !> MGCAMB MOD START
-    subroutine TModGravModel_Init(this, Params)
-        class(TModGravModel) :: this
+    subroutine TModGravityModel_Init(this, Params)
+        class(TModGravityModel) :: this
         class(TCAMBParameters), intent(in) :: Params
-    end subroutine TModGravModel_Init
+    end subroutine TModGravityModel_Init
 
-    function TModGravModel_PythonClass()
-        character(LEN=:), allocatable :: TModGravModel_PythonClass
-        TModGravModel_PythonClass = 'ModGravModel'
-    end function TModGravModel_PythonClass
+    function TModGravityModel_PythonClass()
+        character(LEN=:), allocatable :: TModGravityModel_PythonClass
+        TModGravityModel_PythonClass = 'ModGravityModel'
+    end function TModGravityModel_PythonClass
 
-    subroutine TModGravModel_SelfPointer(cptr,P)
+    subroutine TModGravityModel_SelfPointer(cptr,P)
     use iso_c_binding
     Type(c_ptr) :: cptr
-    Type (TModGravModel), pointer :: PType
+    Type (TModGravityModel), pointer :: PType
     class (TPythonInterfacedClass), pointer :: P
     call c_f_pointer(cptr, PType)
     P => PType
-    end subroutine TModGravModel_SelfPointer
+    end subroutine TModGravityModel_SelfPointer
     !> MGCAMB MOD END
 
     function TInitialPower_ScalarPower(this, k)
