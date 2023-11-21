@@ -219,6 +219,9 @@
     allocate(THalofit::P%NonLinearModel)
     allocate(TDarkEnergyFluid::P%DarkEnergy)
     allocate(TInitialPowerLaw::P%InitPower)
+    !> MGCAMB MOD START
+    allocate(TModGravModel::P%ModGravity)
+    !> MGCAMB MOD END
     allocate(TRecfast::P%Recomb)
     allocate(TTanhReionization::P%Reion)
 

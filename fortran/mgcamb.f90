@@ -1,7 +1,6 @@
 module MGCAMB
     use precision
     use splines
-    use ModGravityInterface
 
     ! new model selection flags
     integer :: MG_flag
@@ -2190,7 +2189,7 @@ contains
 					end if
 					if ( QSA_flag ==  1 ) then
 						B1 = 4._dl/3._dl
-						lambda1_2= CP%B0 ! it is considered as the B0 parameter here
+						lambda1_2= CP%ModGravity%B0 ! it is considered as the B0 parameter here
 						lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mgcamb_par_cache%H0**2)
 						B2 = 0.5d0
 						lambda2_2 = B1* lambda1_2

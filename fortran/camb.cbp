@@ -38,7 +38,6 @@
 		<Unit filename="DarkEnergyFluid.f90" />
 		<Unit filename="DarkEnergyInterface.f90" />
 		<Unit filename="DarkEnergyPPF.f90" />
-		<Unit filename="ModGravityInterface.f90" \>
 		<Unit filename="InitialPower.f90" />
 		<Unit filename="Makefile">
 			<Option virtualFolder="makefile/" />
