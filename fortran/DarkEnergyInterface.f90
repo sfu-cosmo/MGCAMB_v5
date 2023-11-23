@@ -4,10 +4,21 @@
     use classes
     implicit none
 
+    !< MGCAMB MOD START
+    ! MGCAMB specific: I define a "bad value" for variables to suggest
+    ! they are really undefined. In Python, the equivalent would be setting the
+    ! variable to None. This is done so that the dark energy equation of state
+    ! is set by MGCAMB based on all the information it has
+    real(dl), parameter :: UNDEFINED_REAL = -999.0_dl
+    logical, parameter :: UNDEFINED_LOGICAL = .false.
+    !> MGCAMB MOD END
+
     private
 
     type, extends(TCambComponent) :: TDarkEnergyModel
-        logical :: is_cosmological_constant = .true.
+        !< MGCAMB MOD START
+        logical :: is_cosmological_constant = UNDEFINED_LOGICAL
+        !> MGCAMB MOD END
         integer :: num_perturb_equations = 0
     contains
     procedure :: Init
@@ -23,16 +34,18 @@
     procedure :: Effective_w_wa !Used as approximate values for non-linear corrections
     end type TDarkEnergyModel
 
+    !< MGCAMB MOD START
     type, extends(TDarkEnergyModel) :: TDarkEnergyEqnOfState
         !Type supporting w, wa or general w(z) table
-        real(dl) :: w_lam = -1_dl !p/rho for the dark energy (an effective value, used e.g. for halofit)
-        real(dl) :: wa = 0._dl !may not be used, just for compatibility with e.g. halofit
-        real(dl) :: cs2_lam = 1_dl !rest-frame sound speed, though may not be used
+        real(dl) :: w_lam = UNDEFINED_REAL !p/rho for the dark energy (an effective value, used e.g. for halofit)
+        real(dl) :: wa = UNDEFINED_REAL !may not be used, just for compatibility with e.g. halofit
+        real(dl) :: cs2_lam = UNDEFINED_REAL !rest-frame sound speed, though may not be used
         logical :: use_tabulated_w = .false.  !Use interpolated table; note this is quite slow.
         logical :: no_perturbations = .false. !Don't change this, no perturbations is unphysical
         !Interpolations if use_tabulated_w=.true.
         Type(TCubicSpline) :: equation_of_state, logdensity
     contains
+    !> MGCAMB MOD END
     procedure :: ReadParams => TDarkEnergyEqnOfState_ReadParams
     procedure :: Init => TDarkEnergyEqnOfState_Init
     procedure :: SetwTable => TDarkEnergyEqnOfState_SetwTable
@@ -50,7 +63,9 @@
     real(dl) :: w_de, al
     real(dl), intent(IN) :: a
 
-    w_de = -1._dl
+    !> MGCAMB MOD START
+    w_de = UNDEFINED_REAL
+    !< MGCAMB MOD END
 
     end function w_de  ! equation of state of the PPF DE
 
@@ -59,7 +74,9 @@
     real(dl) :: grho_de, al, fint
     real(dl), intent(IN) :: a
 
-    grho_de =0._dl
+    !> MGCAMB MOD START
+    grho_de = UNDEFINED_REAL
+    !< MGCAMB MOD END
 
     end function grho_de
 
