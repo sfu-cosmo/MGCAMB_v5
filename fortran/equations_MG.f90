@@ -36,7 +36,6 @@
     end function dtauda
 
 
-
     !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
     !Gauge-dependent perturbation equations
@@ -210,36 +209,6 @@
     procedure(state_function), private :: dtauda
     contains
 
-
-    function MGCAMB_BigSigma_of_a_and_k( a, k, this, mg_par_cache )
-        use MGCAMB
-        use results
-        ! Temporary function to return Big_Sigma_of_a_and_k
-        ! This function is placed here to avoid circular module issues
-        implicit none
-        real(dl), intent(in) :: a
-        real(dl), intent(in) :: k
-        class(CAMBdata) :: this
-        type(MGCAMB_parameter_cache) :: mg_par_cache    !< cache containing the parameters
-        
-        ! Fictitious parameter cache only containing H=adot_to_a and rho_DE
-        ! this is only for convenience to get Sigma = mu (1+gamma)/2
-        type(MGCAMB_timestep_cache) :: fake_mg_cache
-        real(dl) :: mu, gamma
-        real(dl) :: adotoa
-        real(dl) :: MGCAMB_BigSigma_of_a_and_k
-
-        ! Fill the fake parameter cache with the quantities we need to compute gamma and mu
-        call MGCAMB_DarkEnergy( a, mg_par_cache, fake_mg_cache )
-        fake_mg_cache%adotoa = 1._dl / (a * dtauda( this, a ) )
-
-        ! Get mu and gamma
-        mu = MGCAMB_Mu( a, mg_par_cache, fake_mg_cache )
-        gamma = MGCAMB_Gamma( a, mg_par_cache, fake_mg_cache )
-
-        MGCAMB_BigSigma_of_a_and_k = mu*(1._dl+gamma)/2._dl
-
-    end function MGCAMB_BigSigma_of_a_and_k
 
     subroutine SetActiveState(P)
     class(CAMBdata), target :: P

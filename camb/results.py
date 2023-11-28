@@ -8,6 +8,12 @@ from .model import set_default_params, CAMBparams
 import logging
 from scipy.interpolate import RectBivariateSpline, interp1d
 
+
+#ZW:
+Transfer_tot = 7
+Transfer_Weyl = 10
+#ZW
+
 int_arg = POINTER(c_int)
 d_arg = POINTER(c_double)
 
@@ -724,7 +730,9 @@ class CAMBdata(F2003Class):
         if isinstance(var2, str):
             var2 = model.transfer_names.index(var2) + 1
         return c_int(var1), c_int(var2)
+    
 
+    
     def get_linear_matter_power_spectrum(self, var1=None, var2=None, hubble_units=True, k_hunit=True,
                                          have_power_spectra=True, params=None, nonlinear=False):
         r"""
@@ -760,19 +768,79 @@ class CAMBdata(F2003Class):
             kh = ks / (self.Params.H0 / 100)
         else:
             kh = ks
+
         var1, var2 = self._transfer_var(var1, var2)
 
         hubble_units = c_int(hubble_units)
         PK = np.empty((nz, nk))
-        if nonlinear:
-            CAMBdata_GetNonLinearMatterPower(byref(self), PK, byref(var1), byref(var2), byref(hubble_units))
-            config.check_global_error('get_[non]linear_matter_power_spectrum')
-        else:
-            CAMBdata_GetLinearMatterPower(byref(self), PK, byref(var1), byref(var2), byref(hubble_units))
 
         z = self.Params.Transfer.PK_redshifts[:nz]
         z.reverse()
-        return kh, np.array(z), PK
+
+        #ZW's edit starts
+        if nonlinear:
+            CAMBdata_GetNonLinearMatterPower(byref(self), PK, byref(var1), byref(var2), byref(hubble_units))
+            config.check_global_error('get_[non]linear_matter_power_spectrum')
+
+
+            if (self.Params.MG_flag != 0):
+
+                if (var1.value == c_int(Transfer_tot).value and var2.value == c_int(Transfer_tot).value):
+                    react, lin_MG, z_react, pseudo = self.Params.NonLinearModel.get_react_function(self, hubble_units=hubble_units, nz=nz, nk=nk, kh=kh, z_lin=z, calc_PK_lin=CAMBdata_GetLinearMatterPower)
+                    PK = PK*react
+
+                    print("nonlinear delta-delta is being used")
+
+                elif (var1.value == c_int(Transfer_Weyl).value and var2.value == c_int(Transfer_Weyl).value):
+
+                    PK = np.empty((nz, nk))
+                    rescale_fac  = np.empty((nz, nk))
+                    CAMBdata_GetNonLinearMatterPower(byref(self), PK, byref(c_int(Transfer_tot)), byref(c_int(Transfer_tot)), byref(hubble_units))
+                    react, lin_MG, z_react, pseudo = self.Params.NonLinearModel.get_react_function(self, hubble_units=hubble_units, nz=nz, nk=nk, kh=kh, z_lin=z, calc_PK_lin=CAMBdata_GetLinearMatterPower) 
+
+
+                    for count_z, zi in enumerate(z):
+                        ai = 1.0/(1.0 + zi)
+                        for count_k, ki in enumerate(kh):
+                            rescale_fac[count_z][count_k] = self.get_Sigma_function(ai,ki) * self.get_rho_tot(ai)/2.0
+
+                    PK = PK*react*rescale_fac**2
+
+                    print("nonlinear weyl-weyl is being used")
+
+                else:
+                    raise Exception("nonlinear power spectrum for MG models only supported for matter-matter and Weyl-Weyl currently.")            
+            else:
+                #LCDM
+                PK = PK
+                pseudo = 0.
+
+            # output = np.vstack((kh, lin_MG[0])).T
+            # np.savetxt('/home/zavier/ACTio-ReACTio/MGCAMB/lin_pk_from_results.txt', output)
+        #ZW's edit ends
+            return kh, np.array(z), PK, pseudo
+
+        else:
+            CAMBdata_GetLinearMatterPower(byref(self), PK, byref(var1), byref(var2), byref(hubble_units))
+
+
+            return kh, np.array(z), PK
+    
+    def get_Sigma_function(self, a, k):
+
+        a = c_double(a)
+        k = c_double(k)
+        res = MGCAMB_BigSigma_of_a_and_k(byref(self), byref(a), byref(k))
+        return res
+    
+    def get_rho_tot(self, a):
+
+        a = c_double(a)
+        res = MGCAMB_rho_tot(byref(self), byref(a))
+        return res
+    
+    #ZW
+
 
     def get_nonlinear_matter_power_spectrum(self, var1=None, var2=None, hubble_units=True, k_hunit=True,
                                             have_power_spectra=True, params=None):
@@ -993,7 +1061,13 @@ class CAMBdata(F2003Class):
                     return self(z, np.log(kh))
 
         assert self.Params.WantTransfer
-        khs, zs, pk = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
+        #ZW
+        if nonlinear:
+            khs, zs, pk, _ = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
+        else:
+            khs, zs, pk = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
+        #ZW
+
         kh_max = khs[-1]
         if not k_hunit:
             khs *= self.Params.H0 / 100
@@ -1686,3 +1760,12 @@ CAMB_BackgroundThermalEvolution.argtypes = [POINTER(CAMBdata), int_arg, numpy_1d
 
 CAMB_GetBackgroundOutputs = camblib.__handles_MOD_camb_getbackgroundoutputs
 CAMB_GetBackgroundOutputs.argtypes = [POINTER(CAMBdata), numpy_1d, int_arg]
+
+#ZW
+MGCAMB_BigSigma_of_a_and_k = camblib.__handles_MOD_mgcamb_bigsigma_of_a_and_k
+MGCAMB_BigSigma_of_a_and_k.argtypes = [POINTER(CAMBdata), POINTER(c_double), POINTER(c_double)]
+MGCAMB_BigSigma_of_a_and_k.restype = c_double
+
+MGCAMB_rho_tot = camblib.__handles_MOD_mgcamb_rho_tot
+MGCAMB_rho_tot.argtypes = [POINTER(CAMBdata), POINTER(c_double)]
+MGCAMB_rho_tot.restype = c_double

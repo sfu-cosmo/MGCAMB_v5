@@ -16,6 +16,9 @@ from . import bbn
 import logging
 from typing import Union, Optional
 
+#ZW:
+from .nonlinear import Halofit
+
 max_nu = 5
 max_transfer_redshifts = 256
 nthermo_derived = 13
@@ -556,6 +559,8 @@ class CAMBparams(F2003Class):
         self.ombh2 = ombh2
         self.omch2 = omch2
         self.Alens = Alens
+        #ZW
+        self.m_nu = mnu
 
         neutrino_mass_fac = constants.neutrino_mass_fac * (constants.COBE_CMBTemp / TCMB) ** 3
 

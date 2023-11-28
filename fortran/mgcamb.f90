@@ -75,6 +75,10 @@ module MGCAMB
 
     !character(len=(10)) :: MGCAMB_version = 'v 4.0'
 
+    !added tests
+    real(dl) :: mu_const = 1.1d0, a_center = 0.25d0
+    real(dl) :: width 
+
 
 ! =============MGXrecon=============
 	integer, parameter  :: nnode=10 ! number of fine bins
@@ -730,8 +734,12 @@ contains
                 if ( mugamma_par == 1 ) then ! BZ parametrization 
                     LKA1 = lambda1_2 * mg_cache%k2 * a**ss
                     LKA2 = lambda2_2 * mg_cache%k2 * a**ss
+                    
+                    ! if ((abs(a - 1.d0) < 1.d-1) .and. (abs(mg_cache%k - 1.d0) < 1.d-1) ) then
+                    !     write(*,*) (1._dl + B1 * LKA1)/(1._dl + LKA1), a, mg_cache%k
+                    ! end if
+                    MGCAMB_Mu = (1._dl + B1 * LKA1)/(1._dl + LKA1) 
 
-                    MGCAMB_Mu = (1._dl + B1 * LKA1)/(1._dl + LKA1)  
 
                 else if ( mugamma_par == 2 ) then ! Planck parametrization
 
@@ -745,7 +753,11 @@ contains
                     MGCAMB_Mu = 1._dl+ga*(1._dl)**nn - ga*(1._dl)**(2._dl*nn)
 
                 else if ( mugamma_par == 4 ) then 
-                    MGCAMB_Mu = 1._dl
+                    !MGCAMB_Mu = 1._dl
+                !!test const model
+                    width = 0.1d0* a_center
+                                    	
+			         MGCAMB_Mu = (mu_const-1.d0)/2.d0*(1.d0+tanh((a - a_center)/width)) + 1.d0
 
                 end if
 
@@ -810,6 +822,10 @@ contains
                 MGCAMB_Mu = 1._dl
 
             end if
+        
+        !ZW
+        else if ( MG_flag == 4 ) then
+            MGCAMB_Mu = 1._dl
 
 
         else if (MG_flag == 5) then  !direct mu-Sigma parametrization
@@ -966,7 +982,9 @@ contains
                     MGCAMB_Mudot = mg_cache%adotoa*a*ga*nn*(-1._dl+2._dl*(1._dl-a)**nn)*(1._dl-a)**(nn-1._dl)
 
                 else if ( mugamma_par == 4 ) then
-                    MGCAMB_Mudot = 0._dl
+                   ! MGCAMB_Mudot = 0._dl
+                    width = 0.1d0* a_center
+                    MGCAMB_Mudot = (-1.d0 + mu_const)*COSH((a - a_center)/width)**(-2.d0)/(2.d0* width)*a*mg_cache%adotoa
 
                 end if
 
@@ -1253,6 +1271,10 @@ contains
                 MGCAMB_Gamma = 1._dl
 
             end if
+
+        !ZW
+        else if ( MG_flag == 4) then
+            MGCAMB_Gamma = 1._dl
 
         else if (MG_flag == 5) then 
 
