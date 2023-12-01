@@ -2116,16 +2116,7 @@ contains
 
 		X_arr(2*nnode) = mgcamb_par_cache%omegav
 
-        if ( MG_flag == 0 ) then
-            ! copy the MGCAMB values for w0DE and waDE to the DarkEnergy class
-            CP%DarkEnergy%is_cosmological_constant = .true.
-            CP%DarkEnergy%w_lam = -1_dl
-            CP%DarkEnergy%wa = 0._dl
-            CP%DarkEnergy%cs2_lam = 1_dl
-            CP%DarkEnergy%grho_de = 0.
-            CP%DarkEnergy%we = -1._dl
-
-		else if ( MG_flag /= 0 ) then
+		if ( MG_flag /= 0 ) then
 			if ( MG_flag == 1 ) then
 				if( pure_MG_flag /= 1 .and. pure_MG_flag /= 2 .and. pure_MG_flag /= 3) then
 					stop 'Choose pure_MG_flag properly!'
@@ -2334,15 +2325,9 @@ contains
 
                 if ( DE_model == 1 ) then
                     w0DE = Ini%Read_Double('w0DE', -1._dl)
-                    ! Assign value to DarkEnergy code component
-                    CP%DarkEnergy%w_lam = w0DE
-                    CP%DarkEnergy%wa = 0._dl
                 else if ( DE_model == 2 ) then
                     w0DE = Ini%Read_Double('w0DE', -1._dl)
                     waDE = Ini%Read_Double('waDE', 0._dl)
-                    ! Assign value to DarkEnergy code component
-                    CP%DarkEnergy%w_lam = w0DE
-                    CP%DarkEnergy%wa = waDE
                 else if ( DE_model == 3 ) then
                     write(*,*) 'This is a reconstruction of w_DE(a)'
 
