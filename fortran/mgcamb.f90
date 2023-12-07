@@ -1,9 +1,14 @@
 module MGCAMB
     use precision
-    use classes
+    use ModGravityInterface
     use splines
 
     implicit none
+
+    ! TODO: when some function is not relevant to a parameterization/model
+    ! create it and print an error code if it is called
+
+    ! TODO: it's probably better to retain the MG flags somewhere to test what model it is
 
     ! =========== PURE MG MODELS ============
 
@@ -21,13 +26,17 @@ module MGCAMB
         procedure, nopass :: PythonClass => TMuGammaParameterization_PythonClass
         procedure, nopass :: SelfPointer => TMuGammaParameterization_SelfPointer
         procedure :: Init => TMuGammaParameterization_Init
-        procedure :: ComputeMGFunctions => TMuGammaParameterization_ComputeMGFunctions
         procedure :: ComputeMu => TMuGammaParameterization_ComputeMu
         procedure :: ComputeMudot => TMuGammaParameterization_ComputeMudot
         procedure :: ComputeGamma => TMuGammaParameterization_ComputeGamma
         procedure :: ComputeGammadot => TMuGammaParameterization_ComputeGammadot
+        procedure :: ComputeBigSigma => TMuGammaParameterization_ComputeBigSigma
+        procedure :: ComputeBigSigmadot => TMuGammaParameterization_ComputeBigSigmadot
         procedure :: Computesigma => TMuGammaParameterization_Computesigma
+        procedure :: ComputeMGFunctions => TMuGammaParameterization_ComputeMGFunctions
         procedure :: Computez => TMuGammaParameterization_Computez
+        procedure :: ComputeISW => TMuGammaParameterization_ComputeISW
+        procedure :: ComputeLensing => TMuGammaParameterization_ComputeLensing
 
     end type TMuGammaParameterization
 
@@ -38,13 +47,14 @@ module MGCAMB
     subroutine TMuGammaParameterization_ReadParams( this, Ini )
         use IniObjects
         class(TMuGammaParameterization) :: this
-        class(TIniFile) :: Ini
+        class(TIniFile), intent(in) :: Ini
 
+        this%debug_root = Ini%Read_String_Default( 'output_root', 'debug_' )
         this%B1 = Ini%Read_Double( 'B1', 1.333d0 )
-        this%B2 = Ini%Read_Double( 'B2', 0.5 )
-        this%lambda1_2 = Ini%Read_Double( 'lambda1_2', 1000. )
-        this%lambda2_2 = Ini%Read_Double( 'lambda2_2', 1000. )
-        this%ss = Ini%Read_Double( 'ss', 4. )
+        this%B2 = Ini%Read_Double( 'B2', 0.5d0 )
+        this%lambda1_2 = Ini%Read_Double( 'lambda1_2', 1000.d0 )
+        this%lambda2_2 = Ini%Read_Double( 'lambda2_2', 1000.d0 )
+        this%ss = Ini%Read_Double( 'ss', 4.d0 )
 
     end subroutine TMuGammaParameterization_ReadParams
 
@@ -62,9 +72,13 @@ module MGCAMB
         P => PType
     end subroutine TMuGammaParameterization_SelfPointer
 
-    subroutine TMuGammaParameterization_Init(this, Params)
-        class(TMuGammaParameterization_Init) :: this
-        class(TCAMBParameters), intent(in) :: Params
+    subroutine TMuGammaParameterization_Init(this, State)
+        class(TMuGammaParameterization) :: this
+        class(TCAMBdata), intent(in), target :: State
+
+        ! to keep track of models in different parts of the code
+        this%MG_flag = 1
+
     end subroutine TMuGammaParameterization_Init
 
 
@@ -122,24 +136,57 @@ module MGCAMB
         real(dl) :: num
         real(dl) :: den
 
-        LKA2 = lambda2_2 * mg_cache%k2 * a**ss
-        num = (this%B2 -1._dl)*mg_cache%adotoa * ss* LKA2
-        den = (1._dl+LKA2)**2._dl
+        LKA2 = this%lambda2_2 * this%k2 * a**this%ss
+        num = (this%B2 -1._dl)* this%adotoa * this%ss * LKA2
+        den = (1._dl + LKA2)**2._dl
         this%gammadot = num / den
 
     end subroutine TMuGammaParameterization_ComputeGammadot
 
 
+    ! Sigma(a,k) function - derived from mu(a,k) and gamma(a,k)
+    ! TODO: this could just be made an attribute of `this`
+    function TMuGammaParameterization_ComputeBigSigma( this, a ) result(BigSigma)
+
+        class(TMuGammaParameterization) :: this
+        real(dl) :: a  !< scale factor
+
+        real(dl) :: mu, gamma, BigSigma
+
+        call this%ComputeMu( a )
+        call this%ComputeGamma( a )
+
+        BigSigma = this%mu * (1._dl + this%gamma)/2._dl   
+
+    end function TMuGammaParameterization_ComputeBigSigma  
+
+
+    !dot{Sigma}(a,k) function - obtained from mu, gamma, mudot, gammadot - not used
+    ! in the calculation
+    function TMuGammaParameterization_ComputeBigSigmadot( this, a ) result(BigSigmadot)
+
+        class(TMuGammaParameterization) :: this
+        real(dl) :: a  !< scale factor
+
+        real(dl) :: mu, gamma, mudot, gammadot, BigSigmadot
+
+        call this%ComputeMGFunctions( a )
+        BigSigmadot = (this%mudot * (1._dl + this%gamma) + this%mu * this%gammadot)/2._dl
+     
+    end function TMuGammaParameterization_ComputeBigSigmadot
+
+
+
     !> this subroutine computes the MG functions at a time-step
-    subroutine TMuGammaParameterization_compute_MG_functions( this, a )
+    subroutine TMuGammaParameterization_ComputeMGFunctions( this, a )
 
         class(TMuGammaParameterization) :: this
         real(dl) :: a   !< scale factor
     
-        call this%ComputeMu( this, a )
-        call this%ComputeMuDot( this, a )
-        call this%ComputeGamma( this, a )
-        call this%ComputeGammaDot( this, a )
+        call this%ComputeMu( a )
+        call this%ComputeMuDot( a )
+        call this%ComputeGamma( a )
+        call this%ComputeGammaDot( a )
 
     end subroutine TMuGammaParameterization_ComputeMGFunctions
 
@@ -160,7 +207,6 @@ module MGCAMB
 
     end subroutine TMuGammaParameterization_Computesigma    
 
-    ! CACCA stavo facendo questo
     !---------------------------------------------------------------------------
     !> this subroutine computes the perturbation Z in MG
     subroutine TMuGammaParameterization_Computez( this, a ) 
@@ -235,1269 +281,47 @@ module MGCAMB
     end subroutine TMuGammaParameterization_Computez 
 
 
-
-
-
-
-
     !------------------------------------------------------------GaugeInterface_EvolveScal---------------
     !> this subroutine computes the ISW term in MG 
-    subroutine MGCAMB_compute_ISW( a, mg_par_cache, mg_cache )
-        use precision
-        implicit none
+    subroutine TMuGammaParameterization_ComputeISW( this, a )
 
+        class(TMuGammaParameterization) :: this
         real(dl) :: a   !< scale factor
-        type(MGCAMB_timestep_cache), intent(inout) :: mg_cache      !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in)   :: mg_par_cache  !< cache containing the parameters
 
         !local variables
         real(dl) :: term0
-     
-        real(dl) :: m,beta,betadot 
 
-        m = MGCAMB_M(a, mg_par_cache, mg_cache)
-        beta = MGCAMB_beta(a, mg_par_cache, mg_cache)
-        betadot = MGCAMB_betadot(a, mg_par_cache, mg_cache)
-
-        term0 = mg_cache%k2 + 3._dl* (mg_cache%adotoa**2._dl - mg_cache%Hdot)
+        term0 = this%k2 + 3._dl* (this%adotoa**2._dl - this%Hdot)
 
         !adding MG_rhoDeltadot
-        mg_cache%rhoDeltadot = -term0 * mg_cache%dgq/mg_cache%k - (mg_cache%grho + mg_cache%gpres)* mg_cache%k*mg_cache%z &
-                            & - mg_cache%adotoa * mg_cache%rhoDelta - 2._dl * mg_cache%adotoa * mg_cache%dgpi 
+        this%rhoDeltadot = -term0 * this%dgq/this%k - (this%grho + this%gpres)* this%k*this%z &
+                            & - this%adotoa * this%rhoDelta - 2._dl * this%adotoa * this%dgpi 
 
         !adding dgpidot
-        mg_cache%dgpidot = mg_cache%pidot_sum - (2._dl*mg_cache%dgpi+ mg_cache%dgpi_diff )*mg_cache%adotoa  
+        this%dgpidot = this%pidot_sum - (2._dl*this%dgpi+ this%dgpi_diff )*this%adotoa  
 
-        if (( MG_flag == 1 .and. pure_MG_flag /= 3 ) & ! all the mu, gamma parametrizations
-            .or. MG_flag == 2 &
-            .or. MG_flag == 3 .or. MG_flag == 6) then
+        !! derived from 1st Possion eq
+        this%MG_psidot = - 0.5d0*this%mu/this%k2*(this%rhoDeltadot+2._dl*this%dgpidot) &
+                            & - 0.5d0*this%mudot/this%k2*(this%rhoDelta+2._dl*this%dgpi) 
 
-            !! derived from 1st Possion eq
-            mg_cache%MG_psidot = - 0.5d0*mg_cache%mu/mg_cache%k2*(mg_cache%rhoDeltadot+2._dl*mg_cache%dgpidot) &
-                                & - 0.5d0*mg_cache%mudot/mg_cache%k2*(mg_cache%rhoDelta+2._dl*mg_cache%dgpi) 
+        this%MG_ISW = this%MG_phidot+this%MG_psidot
 
-        else if (  MG_flag == 1 .and. pure_MG_flag == 3  ) then
+        this%MG_alphadot = this%MG_psi - this%adotoa * this%MG_alpha
 
-            mg_cache%MG_psidot = mg_cache%R * mg_cache%MG_phidot + mg_cache%Rdot * mg_cache%MG_phi - &
-                            & mg_cache%Qdot*mg_cache%dgpi/mg_cache%k2 - mg_cache%Q * mg_cache%dgpidot /mg_cache%k2
-
-        else if( MG_flag == 4) then ! only-CDM coupling
-
-            if(CDM_flag == 1) then ! CDM QSA
-
-                mg_cache%rhoDeltadot = -term0 * mg_cache%dgq/mg_cache%k - (mg_cache%grho + mg_cache%gpres)* mg_cache%k*mg_cache%z &
-                                & - mg_cache%adotoa * mg_cache%rhoDelta - 2._dl * mg_cache%adotoa * mg_cache%dgpi - &
-                                (beta*betadot+3._dl*mg_cache%adotoa*beta**2) &
-                                *(mg_cache%grhoc_t*mg_cache%dgrhoc - 3._dl*mg_cache%grhoc_t**2*mg_cache%MG_alpha*mg_cache%adotoa) &
-                                /(mg_cache%k2 + m**2*a**2)
-
-                mg_cache%rhoDeltacdot = -term0 * mg_cache%dgqc/mg_cache%k- mg_cache%grhoc_t*mg_cache%k*mg_cache%z & 
-                             - mg_cache%adotoa * mg_cache%rhoDeltac - (beta*betadot+3._dl*mg_cache%adotoa*beta**2) &
-                    *(mg_cache%grhoc_t*mg_cache%dgrhoc - 3._dl*mg_cache%grhoc_t**2*mg_cache%MG_alpha*mg_cache%adotoa) &
-                    /(mg_cache%k2 + m**2*a**2)
-
-
-                mg_cache%MG_psidot = - 0.5d0/mg_cache%k2*(mg_cache%rhoDeltadot + (mg_cache%C_phi)*mg_cache%rhoDeltacdot &
-                             & + mg_cache%C_phidot*mg_cache%rhoDeltac + 2._dl*mg_cache%dgpidot)   
-
-
-            end if 
-
-                  
-        else if( MG_flag == 5) then 
-
-            mg_cache%MG_psidot = - 0.5d0*mg_cache%mu/mg_cache%k2*(mg_cache%rhoDeltadot+2._dl*mg_cache%dgpidot) &
-                                & - 0.5d0*mg_cache%mudot/mg_cache%k2*(mg_cache%rhoDelta+2._dl*mg_cache%dgpi)
-
-        end if
-   
-
-        mg_cache%MG_ISW = mg_cache%MG_phidot+mg_cache%MG_psidot
-
-        mg_cache%MG_alphadot = mg_cache%MG_psi - mg_cache%adotoa * mg_cache%MG_alpha
-
-    end subroutine MGCAMB_compute_ISW
+    end subroutine TMuGammaParameterization_ComputeISW
 
     !---------------------------------------------------------------------------
     !> this subroutine computes the lensing term in MG
-    subroutine MGCAMB_compute_lensing( a, mg_par_cache, mg_cache )
-        use precision
-        implicit none
+    subroutine TMuGammaParameterization_ComputeLensing( this, a )
 
+        class(TMuGammaParameterization) :: this
         real(dl) :: a   !< scale factor
-        type(MGCAMB_timestep_cache), intent(inout) :: mg_cache      !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in)   :: mg_par_cache  !< cache containing the parameters
 
-        mg_cache%MG_lensing = mg_cache%MG_phi + mg_cache%MG_psi
+        this%MG_lensing = this%MG_phi + this%MG_psi
 
-    end subroutine MGCAMB_compute_lensing
+    end subroutine TMuGammaParameterization_ComputeLensing
 
-     
-     
 
-
-    !-----------------------------------------------
-    ! \dot{gamma}(a,k) function
-    function MGCAMB_Gammadot( a, mg_par_cache, mg_cache )
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_Gammadot                                 !< MG gammadot function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-
-        real(dl) :: LKA1 ! \lambda_1^2 k^2 a^s
-        real(dl) :: LKA2 ! \lambda_1^2 k^2 a^s
-        real(dl) :: t1,t2,t1dot,t2dot
-
-        real(dl) :: beta, betadot, m, mdot
-        real(dl) :: omegaDE_t, omegaDEdot
-        real(dl) :: sigma_t, sigmadot_t  
-        real(dl) :: mu_t, mudot_t
-
-
-
-        !> pure MG models
-        if ( MG_flag == 1 .and. pure_MG_flag /= 3 ) then
-
-            if ( pure_MG_flag == 1 ) then ! mu-gamma
-                if ( mugamma_par == 1 ) then ! BZ parametrization
-                    LKA1 = lambda1_2 * mg_cache%k2 * a**ss
-                    LKA2 = lambda2_2 * mg_cache%k2 * a**ss
-
-                    MGCAMB_Gammadot = ((B2 -1._dl)*mg_cache%adotoa * ss* LKA2)/((1._dl+LKA2)**2._dl)
-
-                else if ( mugamma_par == 2 ) then ! Planck parametrization
-                    ! changing the following
-                    !omegaDEdot = - 3._dl * mg_cache%adotoa * (mg_cache%grhov_t + mg_cache%gpresv_t) &
-                    !            & / a**2 / 3._dl / mg_par_cache%h0_Mpc**2
-                    omegaDEdot=-(mg_cache%grhov_t+3._dl*mg_cache%gpresv_t)/3._dl/mg_cache%adotoa &
-                                & - 2._dl*mg_cache%Hdot/3._dl/mg_cache%adotoa**3*mg_cache%grhov_t
-
-                    MGCAMB_Gammadot = E22*omegaDEdot
-
-                else if ( mugamma_par == 3 ) then
-                    MGCAMB_Gammadot = 0._dl
-
-                else if ( mugamma_par == 4 ) then
-                    MGCAMB_Gammadot = 0._dl
-
-                end if
-
-            else if ( pure_MG_flag == 2 ) then ! mu-Sigma
-
-                if ( muSigma_par == 1 ) then ! DES parametrization
-
-                ! changing the following
-                omegaDE_t = mg_cache%grhov_t / 3._dl / mg_cache%adotoa**2
-                omegaDEdot  =-(mg_cache%grhov_t+3._dl*mg_cache%gpresv_t)/3._dl/mg_cache%adotoa &
-                                & - 2._dl*mg_cache%Hdot/3._dl/mg_cache%adotoa**3*mg_cache%grhov_t
-                sigma_t     = 1._dl + sigma0 * omegaDE_t / mg_par_cache%omegav
-                sigmadot_t  = sigma0 * omegaDEdot / mg_par_cache%omegav
-                mu_t        = 1._dl + mu0 * omegaDE_t / mg_par_cache%omegav
-                mudot_t     = mu0 * omegaDEdot / mg_par_cache%omegav
-                MGCAMB_Gammadot = 2._dl * sigmadot_t / mu_t - 2._dl *sigma_t*mudot_t/mu_t**2
-
-                else if ( muSigma_par == 2 ) then
-                    MGCAMB_Gammadot = 0._dl
-
-                end if
-
-            end if
-
-        !> alternative MG
-        else if ( MG_flag == 2 ) then
-
-            if (alt_MG_flag == 1) then !(Linder Gamma)
-                MGCAMB_Gammadot = 0._dl
-
-            else if ( alt_MG_flag == 2 ) then
-                MGCAMB_Gammadot = 0._dl
-            end if
-
-
-        !> QSA models
-        else if ( MG_flag == 3) then
-
-            if ( QSA_flag == 1 ) then ! f(R)
-                LKA1 = lambda1_2 * mg_cache%k2 * a**ss
-                LKA2 = lambda2_2 * mg_cache%k2 * a**ss
-
-                MGCAMB_Gammadot = ((B2 -1._dl)*mg_cache%adotoa * ss* LKA2)/((1._dl+LKA2)**2._dl)
-
-            else if ( QSA_flag == 2 .or. &  ! beta, m parametrization
-                    QSA_flag == 3  .or. &
-                    QSA_flag == 4 ) then
-                beta    = MGCAMB_Beta( a, mg_par_cache, mg_cache )
-                m       = MGCAMB_M( a, mg_par_cache, mg_cache )
-                betadot = MGCAMB_Betadot( a, mg_par_cache, mg_cache )
-                mdot    = MGCAMB_Mdot( a, mg_par_cache, mg_cache )
-
-                t1      = (2._dl*beta**2._dl)*mg_cache%k2
-                t2      = (m**2._dl)*a**2._dl
-                t1dot   = 4._dl*beta*betadot*mg_cache%k2
-                t2dot   = (2._dl*a**2._dl)*(m*mdot + (m**2._dl) *mg_cache%adotoa)
-
-                MGCAMB_Gammadot = 2._dl*(t1*t2dot-t1dot*(mg_cache%k2 + t2))/((mg_cache%k2 + t1 + t2)**2._dl)
-
-            else if ( QSA_flag == 5 )  then
-                MGCAMB_Gammadot = 0._dl
-
-            end if
-        
-        else if(MG_flag == 5) then 
-        
-            if(muSigma_flag == 1) then 
-
-                if ( pure_MG_flag == 1 ) then ! mu-gamma
-                    if ( mugamma_par == 1 ) then ! BZ parametrization
-                        LKA1 = lambda1_2 * mg_cache%k2 * a**ss
-                        LKA2 = lambda2_2 * mg_cache%k2 * a**ss
-
-                        MGCAMB_Gammadot = ((B2 -1._dl)*mg_cache%adotoa * ss* LKA2)/((1._dl+LKA2)**2._dl)
-
-                    else if ( mugamma_par == 2 ) then ! Planck parametrization
-                        ! changing the following
-                        !omegaDEdot = - 3._dl * mg_cache%adotoa * (mg_cache%grhov_t + mg_cache%gpresv_t) &
-                        !            & / a**2 / 3._dl / mg_par_cache%h0_Mpc**2
-                        omegaDEdot=-(mg_cache%grhov_t+3._dl*mg_cache%gpresv_t)/3._dl/mg_cache%adotoa &
-                                    & - 2._dl*mg_cache%Hdot/3._dl/mg_cache%adotoa**3*mg_cache%grhov_t
-
-                        MGCAMB_Gammadot = E22*omegaDEdot
-
-                    else if ( mugamma_par == 3 ) then
-                        MGCAMB_Gammadot = 0._dl
-
-                    else if ( mugamma_par == 4 ) then
-                        MGCAMB_Gammadot = 0._dl
-
-                    end if
-
-                else if ( pure_MG_flag == 2 ) then ! mu-Sigma
-
-                    if ( muSigma_par == 1 ) then ! DES parametrization
-
-                    ! changing the following
-                    omegaDE_t = mg_cache%grhov_t / 3._dl / mg_cache%adotoa**2
-                    omegaDEdot  =-(mg_cache%grhov_t+3._dl*mg_cache%gpresv_t)/3._dl/mg_cache%adotoa &
-                                    & - 2._dl*mg_cache%Hdot/3._dl/mg_cache%adotoa**3*mg_cache%grhov_t
-                    sigma_t     = 1._dl + sigma0 * omegaDE_t / mg_par_cache%omegav
-                    sigmadot_t  = sigma0 * omegaDEdot / mg_par_cache%omegav
-                    mu_t        = 1._dl + mu0 * omegaDE_t / mg_par_cache%omegav
-                    mudot_t     = mu0 * omegaDEdot / mg_par_cache%omegav
-                    MGCAMB_Gammadot = 2._dl * sigmadot_t / mu_t - 2._dl *sigma_t*mudot_t/mu_t**2
-
-                    else if ( muSigma_par == 2 ) then
-                        MGCAMB_Gammadot = 0._dl
-
-                    end if
-
-                end if   
-
-            else if(muSigma_flag == 2)  then
-            
-                if (alt_MG_flag == 1) then !(Linder Gamma)
-                    MGCAMB_Gammadot = 0._dl
-
-                else if ( alt_MG_flag == 2 ) then
-                    MGCAMB_Gammadot = 0._dl
-                end if
-            
-            else if(muSigma_flag == 3) then 
-
-                if ( QSA_flag == 1 ) then ! f(R)
-                    LKA1 = lambda1_2 * mg_cache%k2 * a**ss
-                    LKA2 = lambda2_2 * mg_cache%k2 * a**ss
-
-                    MGCAMB_Gammadot = ((B2 -1._dl)*mg_cache%adotoa * ss* LKA2)/((1._dl+LKA2)**2._dl)
-
-                else if ( QSA_flag == 2 .or. &  ! beta, m parametrization
-                        QSA_flag == 3  .or. &
-                        QSA_flag == 4 ) then
-                    beta    = MGCAMB_Beta( a, mg_par_cache, mg_cache )
-                    m       = MGCAMB_M( a, mg_par_cache, mg_cache )
-                    betadot = MGCAMB_Betadot( a, mg_par_cache, mg_cache )
-                    mdot    = MGCAMB_Mdot( a, mg_par_cache, mg_cache )
-
-                    t1      = (2._dl*beta**2._dl)*mg_cache%k2
-                    t2      = (m**2._dl)*a**2._dl
-                    t1dot   = 4._dl*beta*betadot*mg_cache%k2
-                    t2dot   = (2._dl*a**2._dl)*(m*mdot + (m**2._dl) *mg_cache%adotoa)
-
-                    MGCAMB_Gammadot = 2._dl*(t1*t2dot-t1dot*(mg_cache%k2 + t2))/((mg_cache%k2 + t1 + t2)**2._dl)
-
-                else if ( QSA_flag == 5 )  then
-                    MGCAMB_Gammadot = 0._dl
-
-                end if
-            
-            else if(muSigma_flag == 4) then 
-                call splint1(a_arr,dgamma_arr,dddgamma_arr,2*nnode,a,MGCAMB_Gammadot)
-                MGCAMB_Gammadot = MGCAMB_Gammadot*mg_cache%adotoa *a
-            end if
-
-! =============MGXrecon=============
-		else if (MG_flag == 6) then
-			call splint1(a_arr,dgamma_arr,dddgamma_arr,2*nnode,a,MGCAMB_Gammadot)
-			MGCAMB_Gammadot = MGCAMB_Gammadot*mg_cache%adotoa *a
-
-        end if
-
-! =============MGXrecon=============
-
-    end function MGCAMB_Gammadot
-
-    ! Sigma(a,k) function
-    function MGCAMB_BigSigma( a, mg_par_cache, mg_cache ) 
-
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_BigSigma                                 !< MG BigSigma function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        real(dl) :: mu, gamma
-
-        if (MG_flag == 5) then
-            mu = MGCAMB_Mu( a, mg_par_cache, mg_cache )
-            gamma = MGCAMB_Gamma( a, mg_par_cache, mg_cache )
-
-            MGCAMB_BigSigma = mu*(1._dl+gamma)/2._dl
-  
-        end if       
-
-    end function MGCAMB_BigSigma  
-
-
-    !dot{Sigma}(a,k) function
-    function MGCAMB_BigSigmadot( a, mg_par_cache, mg_cache )
-
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_BigSigmadot                              !< MG BigSigmadot function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        real(dl) :: mu, gamma, mudot, gammadot
-
-
-        if (MG_flag == 5) then
-            mu = MGCAMB_Mu( a, mg_par_cache, mg_cache )
-            gamma = MGCAMB_Gamma( a, mg_par_cache, mg_cache )
-            mudot = MGCAMB_Mudot( a, mg_par_cache, mg_cache )
-            gammadot = MGCAMB_Gammadot( a, mg_par_cache, mg_cache )
-
-            MGCAMB_BigSigmadot = (mudot*(1._dl+gamma) + mu*gammadot)/2._dl
-
-        end if 
-     
-    end function MGCAMB_BigSigmadot
-
-    !C_phi(a,k) function
-    function MGCAMB_C_phi( a, mg_par_cache, mg_cache ) 
-
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_C_phi                                    !< MG C_phi function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        ! local variables
-        real(dl) :: t1, t2
-
-        real(dl) :: beta, m
-
-        if ( MG_flag == 4 ) then ! only-CDM coupling
-
-            if (CDM_flag == 1) then ! CDM QSA
-
-                if ( QSA_flag == 2 .or. &  ! beta, m parametrization
-                      QSA_flag == 3 .or. &
-                      QSA_flag == 4 ) then     
-
-
-                beta    = MGCAMB_Beta( a, mg_par_cache, mg_cache )
-                m       = MGCAMB_M( a, mg_par_cache, mg_cache )
-                t1      = (beta**2._dl)*mg_cache%grhoc_t
-                t2      = (m**2._dl)*a**2._dl
-                              
-                MGCAMB_C_phi  = t1/(t2 + mg_cache%k2)
-
-
-                else 
-                     write(*,*) 'Please refer to params_MG.ini and choose the correct QSA flag'
-                     stop 
-
-                end if 
-
-            end if 
-
-        end if 
-
-    end function MGCAMB_C_phi  
-
-    !dot{C_phi}(a,k) function
-    function MGCAMB_C_phidot( a, mg_par_cache, mg_cache )
-
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_C_phidot                                 !< MG C_phidot function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        ! local variables
-        real(dl) :: t1,t2,t1dot,t2dot
-
-        real(dl) :: beta, betadot, m, mdot
-
-     
-        if ( MG_flag == 4 ) then !only-CDM coupling
-
-            if (CDM_flag == 1) then  !CDM QSA
-
-                if ( QSA_flag == 2 .or. &  ! beta, m parametrization
-                     QSA_flag == 3 .or. &
-                     QSA_flag == 4 ) then     
-
-                    beta    = MGCAMB_Beta( a, mg_par_cache, mg_cache )
-                    m       = MGCAMB_M( a, mg_par_cache, mg_cache )
-                    betadot = MGCAMB_Betadot( a, mg_par_cache, mg_cache )
-                    mdot    = MGCAMB_Mdot( a, mg_par_cache, mg_cache )
-
-                    t1      = (beta**2._dl)*mg_cache%grhoc_t
-                    t2      = (m**2._dl)*a**2._dl
-                    t1dot   = 2._dl*beta*betadot*mg_cache%grhoc_t - beta**2*mg_cache%grhoc_t*mg_cache%adotoa  
-                    t2dot   = (2._dl*a**2._dl)*(m*mdot+ (m**2._dl)*mg_cache%adotoa)
-
-                    MGCAMB_C_phidot =  (t1dot*(mg_cache%k2 + t2) - t1*t2dot)/((mg_cache%k2 + t2)**2._dl)
-
-                else 
-                    write(*,*) 'Please refer to params_MG.ini and choose the correct QSA flag'
-                    stop
-                end if 
-
-            end if 
-
-        end if 
-
-    end function MGCAMB_C_phidot 
-
-
-
-
-    !----------------------------------------------------------------------------------------------
-    !> MGCAMB (Q,R) parametrization, QSA for scalar-tensor models
-
-    !-----------------------------------------------
-    !> Q(a,k) function
-    function MGCAMB_Q( a, mg_par_cache, mg_cache )
-    implicit none
-    real(dl) :: a                                               !< scale factor
-    real(dl) :: MGCAMB_Q                                        !< MG Q function
-    type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-    type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        if ( QR_par == 1) then
-            MGCAMB_Q = MGQfix
-
-        else if ( QR_par == 2 ) then
-            MGCAMB_Q = 1._dl + (Qnot - 1._dl)* a**sss
-
-        end if
-
-    end function MGCAMB_Q
-
-    !-----------------------------------------------
-    !> \dot{Q}(a,k) function
-    function MGCAMB_Qdot( a, mg_par_cache, mg_cache )
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_Qdot                                     !< MG Qdot function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        if ( QR_par == 1 ) then
-            MGCAMB_Qdot = 0._dl
-
-        else if ( QR_par == 2 ) then
-            MGCAMB_Qdot = (Qnot - 1._dl)*mg_cache%adotoa* sss* a**(sss)
-        end if
-
-    end function MGCAMB_Qdot
-
-    !-----------------------------------------------
-    ! R(a,k) function
-    function MGCAMB_R( a, mg_par_cache, mg_cache )
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_R                                        !< MG R function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-
-        if ( QR_par == 1 ) then
-            MGCAMB_R=MGRfix
-
-        else if ( QR_par == 2 ) then
-            MGCAMB_R = 1._dl + (Rnot - 1._dl)* a**sss
-
-        end if
-
-    end function MGCAMB_R
-
-    !-----------------------------------------------
-    ! \dot{R}(a,k) function
-    function MGCAMB_Rdot( a, mg_par_cache, mg_cache )
-        implicit none
-        real(dl) :: a                                               !< scale factor
-        real(dl) :: MGCAMB_Rdot                                     !< MG Rdot function
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache        !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in) :: mg_par_cache    !< cache containing the parameters
-
-        if ( QR_par == 1 ) then
-            MGCAMB_Rdot = 0._dl
-
-        else if ( QR_par == 2 ) then
-            MGCAMB_Rdot = (Rnot - 1._dl)*mg_cache%adotoa* sss* a**(sss)
-
-        end if
-
-    end function MGCAMB_Rdot
-
-    ! ---------------------------------------------------------------------------------------------
-    !> Modifying the background
-
-    subroutine MGCAMB_DarkEnergy( a, mg_par_cache, mg_cache ) 
-        use precision
-        implicit none
-
-        real(dl) :: a   !< scale factor 
-        type(MGCAMB_timestep_cache),  intent(inout) :: mg_cache      !< cache containing the time-dependent quantities
-        type(MGCAMB_parameter_cache), intent(in)   :: mg_par_cache  !< cache containing the parameters
-
-        real(dl) :: wnow
-
-		real(dl) :: z, X, dXda, Y
-
-        if ( DE_model == 0 ) then 
-            mg_cache%grhov_t = 3._dl*mg_par_cache%h0_Mpc**2 * mg_par_cache%omegav *a**2
-            mg_cache%gpresv_t = - mg_cache%grhov_t
-
-        else if ( DE_model == 1 ) then
-			if (a > 1e-10) then
-            	mg_cache%grhov_t = 3._dl*mg_par_cache%h0_Mpc**2*mg_par_cache%omegav*a**(-1._dl-3._dl*w0DE)
-			else 
-				mg_cache%grhov_t = 0._dl
-			end if          
-            mg_cache%gpresv_t = mg_cache%grhov_t * w0DE
-            
-        else if (DE_model == 2 ) then
-            wnow = w0DE+(1._dl-a)*waDE
-			if (a > 1e-10) then
-            	mg_cache%grhov_t = 3._dl*mg_par_cache%h0_Mpc**2*mg_par_cache%omegav* &
-	                         a**(-1.d0-3.d0*w0DE-3.d0*waDE)*Exp(3.d0*waDE*(a-1.d0))
-			else
-				mg_cache%grhov_t = 0._dl
-			end if
-            mg_cache%gpresv_t = mg_cache%grhov_t * wnow
-
-        else if ( DE_model == 3 ) then
-
-			call splint1(a_arr,X_arr,ddX_arr,2*nnode,a,X)
-			call splint1(a_arr,dX_arr,dddX_arr,2*nnode,a,dXda)
-
-			Y = -X - dXda*a/3.d0 ! pg 5 of 1807.03772
-			mg_cache%grhov_t  = X*3.d0*mg_par_cache%h0_Mpc**2.d0*a**2.d0
-			mg_cache%gpresv_t = Y*3.d0*mg_par_cache%h0_Mpc**2.d0*a**2.d0
-
-        else if ( DE_model == 4 ) then
-            write(*,*) 'This will contain the reconstruction of rho_DE(a)'
-            write(*,*) 'Not implemented yet'
-            stop
-        else
-            write(*,*) 'choose a DE model'
-            stop
-        end if
-
-    end subroutine MGCAMB_DarkEnergy
-
-	subroutine MGCAMB_DE_perturb
-        use precision
-        implicit none
-
-        if ( DE_model == 0 ) then
-			MGDE_const = .True.
-
-		else if ( DE_model == 1 ) then
-			if(w0DE == -1._dl) then
-				MGDE_const = .True.
-			else
-				MGDE_const = .False.
-			end if
-		else if (DE_model == 2) then
-			if(w0DE == -1._dl .and. waDE == 0._dl) then
-				MGDE_const = .True.
-			else
-				MGDE_const = .False.
-			end if
-		end if
-
-	end subroutine MGCAMB_DE_perturb
-
-	subroutine MGCAMB_DE_EoS(a, w)
-		use precision
-		implicit none
-
-        real(dl) :: a   !< scale factor
-		real(dl) :: w
-
-        w = -1._dl
-        
-		if ( DE_model == 0 ) then
-			w = -1._dl
-		else if(DE_model == 1) then
-			w = w0DE
-
-		else if(DE_model == 2) then
-			w = w0DE+(1._dl-a)*waDE
-		end if
-
-	end subroutine MGCAMB_DE_EoS
-    
-	!>this subroutine reads MG parameters into the module
-	subroutine MGCAMB_read_in_MGparams(CP)
-		use precision
-		use constants
-		use model
-        implicit none
-
-		type(CAMBparams) :: CP
-
-        !DE pertubations
-        MGDE_pert = CP%ModGravity%MGDE_pert
-
-        !reconstruction model parameters
-		mu_arr(10) =  CP%ModGravity%MGCAMB_Mu_idx_1
-		mu_arr(11) =  CP%ModGravity%MGCAMB_Mu_idx_2
-		mu_arr(12) =  CP%ModGravity%MGCAMB_Mu_idx_3
-		mu_arr(13) =  CP%ModGravity%MGCAMB_Mu_idx_4
-		mu_arr(14) =  CP%ModGravity%MGCAMB_Mu_idx_5
-		mu_arr(15) =  CP%ModGravity%MGCAMB_Mu_idx_6
-		mu_arr(16) =  CP%ModGravity%MGCAMB_Mu_idx_7
-		mu_arr(17) =  CP%ModGravity%MGCAMB_Mu_idx_8
-		mu_arr(18) =  CP%ModGravity%MGCAMB_Mu_idx_9
-		mu_arr(19) =  CP%ModGravity%MGCAMB_Mu_idx_10
-		mu_arr(20) =  CP%ModGravity%MGCAMB_Mu_idx_11
-		Sigma_arr(10) =  CP%ModGravity%MGCAMB_Sigma_idx_1
-		Sigma_arr(11) =  CP%ModGravity%MGCAMB_Sigma_idx_2
-		Sigma_arr(12) =  CP%ModGravity%MGCAMB_Sigma_idx_3
-		Sigma_arr(13) =  CP%ModGravity%MGCAMB_Sigma_idx_4
-		Sigma_arr(14) =  CP%ModGravity%MGCAMB_Sigma_idx_5
-		Sigma_arr(15) =  CP%ModGravity%MGCAMB_Sigma_idx_6
-		Sigma_arr(16) =  CP%ModGravity%MGCAMB_Sigma_idx_7
-		Sigma_arr(17) =  CP%ModGravity%MGCAMB_Sigma_idx_8
-		Sigma_arr(18) =  CP%ModGravity%MGCAMB_Sigma_idx_9
-		Sigma_arr(19) =  CP%ModGravity%MGCAMB_Sigma_idx_10
-		Sigma_arr(20) =  CP%ModGravity%MGCAMB_Sigma_idx_11
-		X_arr(10) =  CP%ModGravity%Funcofw_1
-		X_arr(11) =  CP%ModGravity%Funcofw_2
-		X_arr(12) =  CP%ModGravity%Funcofw_3
-		X_arr(13) =  CP%ModGravity%Funcofw_4
-		X_arr(14) =  CP%ModGravity%Funcofw_5
-		X_arr(15) =  CP%ModGravity%Funcofw_6
-		X_arr(16) =  CP%ModGravity%Funcofw_7
-		X_arr(17) =  CP%ModGravity%Funcofw_8
-		X_arr(18) =  CP%ModGravity%Funcofw_9
-		X_arr(19) =  CP%ModGravity%Funcofw_10
-		X_arr(20) =  CP%ModGravity%Funcofw_11
-
-		mgcamb_par_cache%omegab = CP%ombh2/(CP%H0/100)**2
-		mgcamb_par_cache%omegac = CP%omch2/(CP%H0/100)**2
-		mgcamb_par_cache%h0     = CP%H0
-		mgcamb_par_cache%h0_Mpc = CP%H0 * (1.d3/c) 
-
-		X_arr(2*nnode) = mgcamb_par_cache%omegav
-
-		if ( MG_flag /= 0 ) then
-			if ( MG_flag == 1 ) then
-				if( pure_MG_flag /= 1 .and. pure_MG_flag /= 2 .and. pure_MG_flag /= 3) then
-					stop 'Choose pure_MG_flag properly!'
-				end if
-				if ( DE_model /= 0 .and. DE_model /=1 .and. DE_model /= 2 .and. DE_model /= 3) then
-					stop 'Choose DE_model properly!'
-				end if
-
-			else if ( MG_flag == 2 ) then
-				if ( DE_model /= 0 ) then
-					stop 'Choose DE_model properly!'
-				end if
-
-			else if ( MG_flag == 3) then
-				if ( QSA_flag > 4 .or. QSA_flag < 1 ) then
-					stop 'Choose QSA_flag properly!'
-				end if
-				if ( QSA_flag ==  1 ) then
-					B1 = 4._dl/3._dl
-					lambda1_2= CP%ModGravity%B0 ! it is considered as the B0 parameter here
-					lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mgcamb_par_cache%H0**2)
-					B2 = 0.5d0
-					lambda2_2 = B1* lambda1_2
-					ss = 4._dl
-				else if( QSA_flag ==  2 ) then
-					GRtrans = a_star
-				else if ( QSA_flag ==  4 ) then
-					beta0 = 1._dl/sqrt(6._dl)
-				end if
-
-				if ( DE_model /= 0 ) then
-					stop 'Choose DE_model properly!'
-				end if
-
-			else if ( MG_flag == 4) then
-				if(CDM_flag == 1) then
-					if ( QSA_flag > 4 .or. QSA_flag < 2 ) then
-						stop 'Choose QSA_flag properly!'
-					end if
-					if( QSA_flag ==  2 ) then
-						GRtrans = a_star
-					else if ( QSA_flag ==  4 ) then
-						beta0 = 1._dl/sqrt(6._dl)
-					end if
-				else
-					stop 'Please choose CDM_flag properly'
-				end if
-
-				if ( DE_model /= 0 ) then
-					stop 'Choose DE_model properly!'
-				end if
-
-			else if ( MG_flag == 5) then
-				if( muSigma_flag== 1) then
-					if( pure_MG_flag /= 1 .and. pure_MG_flag /= 2) then
-						stop 'Choose pure_MG_flag properly!'
-					end if
-					if ( DE_model /= 0 .and. DE_model /=1 .and. DE_model /= 2 .and. DE_model /= 3) then
-						stop 'Choose DE_model properly!'
-					end if
-
-				else if(muSigma_flag==2) then
-					if ( DE_model /= 0 ) then
-						stop 'Choose DE_model properly!'
-					end if
-
-				else if(muSigma_flag==3) then
-					if ( QSA_flag > 4 .or. QSA_flag < 1 ) then
-						 stop 'Choose QSA_flag properly!'
-					end if
-					if ( QSA_flag ==  1 ) then
-						B1 = 4._dl/3._dl
-						lambda1_2= CP%ModGravity%B0 ! it is considered as the B0 parameter here
-						lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mgcamb_par_cache%H0**2)
-						B2 = 0.5d0
-						lambda2_2 = B1* lambda1_2
-						ss = 4._dl
-					else if( QSA_flag ==  2 ) then
-						GRtrans = a_star
-					else if ( QSA_flag ==  4 ) then
-						beta0 = 1._dl/sqrt(6._dl)
-					end if
-
-					if ( DE_model /= 0 ) then
-						stop 'Choose DE_model properly!'
-					end if
-
-				else if(muSigma_flag==4) then
-					if ( DE_model /=1 .and. DE_model /= 2 .and. DE_model /= 3) then
-						stop 'Choose DE_model properly!'
-					end if
-				else
-					stop 'Please write your own model'
-				end if
-
-			else if ( MG_flag == 6 ) then
-				if ( DE_model /=1 .and. DE_model /= 2 .and. DE_model /= 3) then
-					stop 'Choose DE_model properly!'
-				end if
-			else
-				stop 'Choose MG_flag properly!'
-			end if
-		end if
-    end subroutine MGCAMB_read_in_MGparams
-
-
-    ! ---------------------------------------------------------------------------------------------
-    !> Subroutine that reads the MGCAMB model parameters
-    subroutine MGCAMB_read_model_params( mg_par_cache, Ini )
-        use IniObjects
-	    type(TIniFile) :: Ini   
-        Type(MGCAMB_parameter_cache), intent(in)   :: mg_par_cache  !< cache containing the parameters
-
-		integer :: i
-		character(len=(10)) :: cTemp
-
-        ! 1. MG_flag
-        MG_flag = Ini%Read_Int('MG_flag', 0) 
- 
-        if ( MG_flag /= 0 ) then
-            call print_MGCAMB_header  !! call the printing subroutine down below
-            write(*,*)
-            write(*,*) 'MG_flag:', MG_flag
-
-            write(*,*) 'Debug:', DebugMGCAMB
-
-
-            ! read GRtrans
-            GRtrans = Ini%Read_Double('GRtrans',0.01_dl)
-            write(*,*) '    GRtrans:', GRtrans
-
-            ! 1. pure MG models
-            if ( MG_flag == 1 ) then
-
-                pure_MG_flag = Ini%Read_Int('pure_MG_flag', 1)
-
-                if ( pure_MG_flag == 1 ) then ! mu-gamma
-                    write(*,*) '    MGCAMB: mu-gamma parametrization'
-                    mugamma_par = Ini%Read_Int('mugamma_par' , 1)
-
-                    if ( mugamma_par == 1 ) then
-                        write(*,*) '        BZ parametrization'
-                        B1= Ini%Read_Double('B1',0._dl)
-                        B2= Ini%Read_Double('B2',0._dl)
-                        lambda1_2= Ini%Read_Double('lambda1_2',0._dl)
-                        lambda2_2= Ini%Read_Double('lambda2_2',0._dl)
-                        ss= Ini%Read_Double('ss',0._dl)
-                    else if ( mugamma_par == 2 ) then
-                        write(*,*) '        Planck parametrization'
-                        E11     = Ini%Read_Double('E11', 0._dl)
-                        E22     = Ini%Read_Double('E22', 0._dl)
-                        write(*,*) 'E11, E22', E11, E22
-                    else if ( mugamma_par == 3 ) then
-                        write(*,*) '        Effective Newton constant'
-                        ga      = Ini%Read_Double('ga', 0._dl)
-                        nn      = Ini%Read_Double('nn', 0._dl)
-                        write(*,*) 'ga, nn:', ga, nn
-                    else
-                        write(*,*) ' write your own mu-gamma parametrization in mgcamb.f90'
-                        stop
-                    end if
-
-
-                else if ( pure_MG_flag == 2 ) then ! mu-Sigma
-                    write(*,*) '    MGCAMB: mu-Sigma parametrization'
-                    muSigma_par = Ini%Read_Int('musigma_par', 1)
-                    if ( muSigma_par == 1 ) then
-                        write(*,*) '        DES parametrization'
-                        mu0     = Ini%Read_Double('mu0', 0._dl)
-                        sigma0  = Ini%Read_Double('sigma0', 0._dl)
-                        write(*,*) 'mu0, sigma0:', mu0, sigma0
-                    else if ( muSigma_par == 2 ) then
-                        write(*,*) 'writer you own mu-sigma parametrization in mgcamb.f90'
-                        stop
-                    else
-                        write(*,*) 'Please choose a model in params_MG.ini'
-                        stop
-                    end if
-
-                else if ( pure_MG_flag == 3 ) then ! Q-R
-                    write(*,*) '    MGCAMB: Q-R parametrization'
-                    QR_par = Ini%Read_Int('QR_par', 1)
-                    if ( QR_par == 1 ) then
-                        MGQfix=Ini%Read_Double('MGQfix', 0._dl)
-                        MGRfix=Ini%Read_Double('MGRfix', 0._dl)
-                    else if ( QR_par == 2 ) then
-                        Qnot=Ini%Read_Double('Qnot', 0._dl)
-                        Rnot=Ini%Read_Double('Rnot', 0._dl)
-                        sss=Ini%Read_Double('sss', 0._dl)
-                    else if ( QR_par == 3 ) then
-                        write(*,*) 'write your own QR parametrization in mgcamb.f90'
-                        stop
-                    else
-                        write(*,*) 'Please choose a model in params_MG.ini'
-                        stop
-                    end if
-
-                end if
-
-                ! Checking DE Model
-                DE_model = Ini%Read_Int('DE_model', 0)
-
-                write(*,*) 'DE_model:', DE_model
-
-                MGDE_pert = Ini%Read_Logical('MGDE_pert',.false.)
-
-                if ( DE_model == 1 ) then
-                    w0DE = Ini%Read_Double('w0DE', -1._dl)
-                else if ( DE_model == 2 ) then
-                    w0DE = Ini%Read_Double('w0DE', -1._dl)
-                    waDE = Ini%Read_Double('waDE', 0._dl)
-                else if ( DE_model == 3 ) then
-                    write(*,*) 'This is a reconstruction of w_DE(a)'
-
-					do i = 1, nnode+1
-						write( cTemp,'(i2)' ) i
-						X_arr(i+nnode-1) =  Ini%Read_Double('Funcofw('//trim(adjustl(cTemp))//')', 1._dl)
-					end do
-					!X_arr(2*nnode) = mgcamb_par_cache%omegav
-                else if ( DE_model == 4 ) then
-                    write(*,*) 'This will contain the reconstruction of rho_DE(a)'
-                    write(*,*) 'Not implemented yet'
-                    stop
-                else if ( DE_model /= 0 ) then
-                    write(*,*) 'Please choose a DE model'
-                    stop
-                end if
-
-
-
-            else if ( MG_flag == 2 ) then
-                alt_MG_flag = Ini%Read_Int('alt_MG_flag', 1)
-                if ( alt_MG_flag == 1 ) then
-                    write(*,*) '    MGCAMB: Linder Gamma'
-                    Linder_gamma = Ini%Read_Double('Linder_gamma', 0._dl)
-                else if ( alt_MG_flag == 2 ) then
-                    write(*,*) 'Please write your alternative MG model in mgcamb.f90'
-                    stop
-                else
-                    write(*,*) 'Please choose a model in params_MG.ini'
-                    stop
-                end if
-
-                ! Checking DE Model
-                DE_model = Ini%Read_Int('DE_model', 0)
-
-                if ( DE_model /= 0 ) then
-                    write(*,*) 'alternative MG models supported only with cosmological constant!'
-                end if
-
-
-            else if ( MG_flag == 3 ) then 
-
-                write(*,*) 'standard QSA with mu-gamma parametrization'
-
-                QSA_flag = Ini%Read_Int('QSA_flag', 1)
-
-                    if ( QSA_flag ==  1 ) then
-                        write(*,*) '        QSA f(R)'
-                        B1 = 4._dl/3._dl
-                        lambda1_2= Ini%Read_Double('B0',0._dl) ! it is considered as the B0 parameter here
-                        lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mg_par_cache%H0**2)
-                        B2 = 0.5d0
-                        lambda2_2 = B1* lambda1_2
-                        ss = 4._dl
-
-                    else if ( QSA_flag ==  2 ) then
-                        write(*,*) '        QSA Symmetron'
-                        beta_star = Ini%Read_Double('beta_star', 0._dl)
-                        xi_star = Ini%Read_Double ('xi_star', 0._dl)
-                        a_star = Ini%Read_Double('a_star', 0._dl)
-                        GRtrans = a_star
-
-                    else if ( QSA_flag ==  3 ) then
-                        write(*,*) '        QSA Dilaton'
-                        ! GENERALIZED DILATON
-                        beta0 = Ini%Read_Double('beta0', 0._dl)
-                        xi0 = Ini%Read_Double('xi0', 0._dl)
-                        DilR = Ini%Read_Double('DilR', 0._dl)
-                        DilS = Ini%Read_Double('DilS', 0._dl)
-
-                    else if ( QSA_flag ==  4 ) then
-                        write(*,*) '        QSA Hu-Sawicki f(R)'
-                        F_R0 = Ini%Read_Double('F_R0', 0._dl)
-                        FRn = Ini%Read_Double('FRn', 0._dl)
-                        beta0 = 1._dl/sqrt(6._dl)
-                    else if ( QSA_flag ==  5 ) then
-                        write(*,*) 'Please write your QSA model in mgcamb.f90'
-                        stop
-
-                    end if
-
-
-                    ! Checking DE Model
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    if ( DE_model /= 0 ) then
-                        write(*,*) 'QSA models supported only with cosmological constant!'
-                    end if
- 
-
-            else if (MG_flag == 4) then
-
-                CDM_flag = Ini%Read_Int('CDM_flag', 1)
-                QSA_flag = Ini%Read_Int('QSA_flag', 1)
-
-                write(*,*) 'only-CDM coupling QSA models'
-
-                if(CDM_flag == 1) then 
-                    write(*,*) 'CDM QSA'
-                else
-                    write(*,*) 'Please choose flag properly'
-                    stop
-                end if
-
-                if(CDM_flag == 1) then 
-
-                    if ( QSA_flag ==  2 ) then
-                        write(*,*) '        QSA Symmetron'
-                        beta_star = Ini%Read_Double('beta_star', 0._dl)
-                        xi_star = Ini%Read_Double ('xi_star', 0._dl)
-                        a_star = Ini%Read_Double('a_star', 0._dl)
-                        GRtrans = a_star
-
-                    else if ( QSA_flag ==  3 ) then
-                        write(*,*) '        QSA Dilaton'
-                        ! GENERALIZED DILATON
-                        beta0 = Ini%Read_Double('beta0', 0._dl)
-                        xi0 = Ini%Read_Double('xi0', 0._dl)
-                        DilR = Ini%Read_Double('DilR', 0._dl)
-                        DilS = Ini%Read_Double('DilS', 0._dl)
-
-                    else if ( QSA_flag ==  4 ) then
-                        write(*,*) '        QSA Hu-Sawicki f(R)'
-                        F_R0 = Ini%Read_Double('F_R0', 0._dl)
-                        FRn = Ini%Read_Double('FRn', 0._dl)
-                        beta0 = 1._dl/sqrt(6._dl)
-
-                    else
-                        write(*,*) 'please choose QSA_flag properly'
-                        stop
-
-                    end if
-
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    if ( DE_model /= 0 ) then
-                        write(*,*) 'QSA models supported only with cosmological constant!'
-                    end if                    
-
-                end if 
-
-            else if (MG_flag == 5) then
-
-                write(*,*) 'direct mu-Sigma parametrization'
-
-                muSigma_flag = Ini%Read_Int('muSigma_flag', 1)
-            
-                if (muSigma_flag == 1) then
-
-                    pure_MG_flag = Ini%Read_Int('pure_MG_flag', 1)
-
-                    if ( pure_MG_flag == 1 ) then ! mu-gamma
-                        write(*,*) '    MGCAMB: mu-gamma parametrization'
-                        mugamma_par = Ini%Read_Int('mugamma_par' , 1)
-                        if ( mugamma_par == 1 ) then
-                            write(*,*) '        BZ parametrization'
-                            B1= Ini%Read_Double('B1',0._dl)
-                            B2= Ini%Read_Double('B2',0._dl)
-                            lambda1_2= Ini%Read_Double('lambda1_2',0._dl)
-                            lambda2_2= Ini%Read_Double('lambda2_2',0._dl)
-                            ss= Ini%Read_Double('ss',0._dl)
-                        else if ( mugamma_par == 2 ) then
-                            write(*,*) '        Planck parametrization'
-                            E11     = Ini%Read_Double('E11', 0._dl)
-                            E22     = Ini%Read_Double('E22', 0._dl)
-                            write(*,*) 'E11, E22', E11, E22
-                        else if ( mugamma_par == 3 ) then
-                            write(*,*) '        Effective Newton constant'
-                            ga      = Ini%Read_Double('ga', 0._dl)
-                            nn      = Ini%Read_Double('nn', 0._dl)
-                            write(*,*) 'ga, nn:', ga, nn
-                        else
-                            write(*,*) ' write your own mu-gamma parametrization in mgcamb.f90'
-                            stop
-                        end if
-
-
-                    else if ( pure_MG_flag == 2 ) then ! mu-Sigma
-                        write(*,*) '    MGCAMB: mu-Sigma parametrization'
-                        muSigma_par = Ini%Read_Int('musigma_par', 1)
-                        if ( muSigma_par == 1 ) then
-                            write(*,*) '        DES parametrization'
-                            mu0     = Ini%Read_Double('mu0', 0._dl)
-                            sigma0  = Ini%Read_Double('sigma0', 0._dl)
-                            write(*,*) 'mu0, sigma0:', mu0, sigma0
-                        else if ( muSigma_par == 2 ) then
-                            write(*,*) 'write you own mu-sigma parametrization in mgcamb.f90'
-                            stop
-                        else
-                            write(*,*) 'Please choose a model in params_MG.ini'
-                            stop
-                        end if 
-                    end if
-
-                    ! Checking DE Model
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    write(*,*) 'DE_model:', DE_model
-
-                    MGDE_pert = Ini%Read_Logical('MGDE_pert',.false.)
-
-                    if ( DE_model == 1 ) then
-                        w0DE = Ini%Read_Double('w0DE', -1._dl)
-                    else if ( DE_model == 2 ) then
-                        w0DE = Ini%Read_Double('w0DE', -1._dl)
-                        waDE = Ini%Read_Double('waDE', 0._dl)
-                    else if ( DE_model == 3 ) then
-                        write(*,*) 'This is a reconstruction of w_DE(a)'
-
-                        do i = 1, nnode+1
-                            write( cTemp,'(i2)' ) i
-                            X_arr(i+nnode-1) =  Ini%Read_Double('Funcofw('//trim(adjustl(cTemp))//')', 1._dl)
-                        end do
-                        !X_arr(2*nnode) = mgcamb_par_cache%omegav
-
-                    else if ( DE_model == 4 ) then
-                        write(*,*) 'This will contain the reconstruction of rho_DE(a)'
-                        write(*,*) 'Not implemented yet'
-                        stop
-                    else if ( DE_model /= 0 ) then
-                        write(*,*) 'Please choose a DE model'
-                        stop
-                    end if
-
-                else if(muSigma_flag == 2) then 
-
-                    alt_MG_flag = Ini%Read_Int('alt_MG_flag', 1)
-                    if ( alt_MG_flag == 1 ) then
-                        write(*,*) '    MGCAMB: Linder Gamma'
-                        Linder_gamma = Ini%Read_Double('Linder_gamma', 0._dl)
-                    else if ( alt_MG_flag == 2 ) then
-                        write(*,*) 'Please write your alternative MG model in mgcamb.f90'
-                        stop
-                    else
-                        write(*,*) 'Please choose a model in params_MG.ini'
-                        stop
-                    end if
-
-                    ! Checking DE Model
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    if ( DE_model /= 0 ) then
-                        write(*,*) 'alternative MG models supported only with cosmological constant!'
-                    end if
-                
-                else if (muSigma_flag == 3) then 
-
-                    write(*,*) 'standard QSA for all-matter case'
-
-                    QSA_flag = Ini%Read_Int('QSA_flag', 1)
-
-                    if ( QSA_flag ==  1 ) then
-                        write(*,*) '        QSA f(R)'
-                        B1 = 4._dl/3._dl
-                        lambda1_2= Ini%Read_Double('B0',0._dl) ! it is considered as the B0 parameter here
-                        lambda1_2 = (lambda1_2*(299792458.d-3)**2)/(2._dl*mg_par_cache%H0**2)
-                        B2 = 0.5d0
-                        lambda2_2 = B1* lambda1_2
-                        ss = 4._dl
-
-                    else if ( QSA_flag ==  2 ) then
-                        write(*,*) '        QSA Symmetron'
-                        beta_star = Ini%Read_Double('beta_star', 0._dl)
-                        xi_star = Ini%Read_Double ('xi_star', 0._dl)
-                        a_star = Ini%Read_Double('a_star', 0._dl)
-                        GRtrans = a_star
-
-                    else if ( QSA_flag ==  3 ) then
-                        write(*,*) '        QSA Dilaton'
-                        ! GENERALIZED DILATON
-                        beta0 = Ini%Read_Double('beta0', 0._dl)
-                        xi0 = Ini%Read_Double('xi0', 0._dl)
-                        DilR = Ini%Read_Double('DilR', 0._dl)
-                        DilS = Ini%Read_Double('DilS', 0._dl)
-
-                    else if ( QSA_flag ==  4 ) then
-                        write(*,*) '        QSA Hu-Sawicki f(R)'
-                        F_R0 = Ini%Read_Double('F_R0', 0._dl)
-                        FRn = Ini%Read_Double('FRn', 0._dl)
-                        beta0 = 1._dl/sqrt(6._dl)
-
-                    else
-                        write(*,*) 'please choose QSA_flag properly'
-                        stop
-
-                    end if
-
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    if ( DE_model /= 0 ) then
-                        write(*,*) 'QSA models supported only with cosmological constant!'
-                    end if  
-
-                else if(muSigma_flag == 4) then 
-
-                    write(*,*) 'Reconstruction'
-                    do i = 1, nnode+1
-                        write( cTemp,'(i2)' ) i
-                        mu_arr(i+nnode-1) =  Ini%Read_Double('MGCAMB_Mu_idx('//trim(adjustl(cTemp))//')', 1._dl)
-                        Sigma_arr(i+nnode-1) =  Ini%Read_Double('MGCAMB_Sigma_idx('//trim(adjustl(cTemp))//')', 1._dl)
-                    end do
-
-                    DE_model = Ini%Read_Int('DE_model', 0)
-
-                    write(*,*) 'DE_model:', DE_model
-
-                    if ( DE_model == 1 ) then
-                        w0DE = Ini%Read_Double('w0DE', -1._dl)
-                    else if ( DE_model == 2 ) then
-                        w0DE = Ini%Read_Double('w0DE', -1._dl)
-                        waDE = Ini%Read_Double('waDE', 0._dl)
-                    else if ( DE_model == 3 ) then
-                        write(*,*) 'This is a reconstruction of w_DE(a)'
-                        do i = 1, nnode+1
-                            write( cTemp,'(i2)' ) i
-                            X_arr(i+nnode-1) =  Ini%Read_Double('Funcofw('//trim(adjustl(cTemp))//')', 1._dl)
-                        end do
-                        !(2*nnode) = mgcamb_par_cache%omegav
-                
-                    else
-                        write(*,*) 'Please choose a DE model'
-                        stop
-                    end if             
-
-                else 
-                    write(*,*) 'Please write your own mu-Sigma model'
-                    stop 
-                end if
-
-			else if ( MG_flag == 6) then
-
-				write(*,*) 'Reconstruction'
-				do i = 1, nnode+1
-					write( cTemp,'(i2)' ) i
-					mu_arr(i+nnode-1) =  Ini%Read_Double('MGCAMB_Mu_idx('//trim(adjustl(cTemp))//')', 1._dl)
-					Sigma_arr(i+nnode-1) =  Ini%Read_Double('MGCAMB_Sigma_idx('//trim(adjustl(cTemp))//')', 1._dl)
-				end do
-
-				DE_model = Ini%Read_Int('DE_model', 0)
-				write(*,*) 'DE_model:', DE_model
-
-				if ( DE_model == 1 ) then
-					w0DE = Ini%Read_Double('w0DE', -1._dl)
-				else if ( DE_model == 2 ) then
-					w0DE = Ini%Read_Double('w0DE', -1._dl)
-					waDE = Ini%Read_Double('waDE', 0._dl)
-				else if ( DE_model == 3 ) then
-					write(*,*) 'This is a reconstruction of w_DE(a)'
-					do i = 1, nnode+1
-						write( cTemp,'(i2)' ) i
-						X_arr(i+nnode-1) =  Ini%Read_Double('Funcofw('//trim(adjustl(cTemp))//')', 1._dl)
-					end do
-					!X_arr(2*nnode) = mgcamb_par_cache%omegav
-				
-				else 
-					write(*,*) 'Please choose a DE model'
-					stop
-				end if
-
-            else 
-                write(*,*) 'Please choose a model'
-                stop
-            end if
-
-        end if 
-
-
-    end subroutine MGCAMB_read_model_params
 
 ! ---------------------------------------------------------------------------------------------
     !> Subroutine that prints to screen the MGCAMB header.
@@ -1518,151 +342,8 @@ module MGCAMB
 
     end subroutine print_MGCAMB_header
 
-    ! ---------------------------------------------------------------------------------------------
-    !> Subroutine that sets the mgcamb_cache to zero
-    subroutine MGCAMB_timestep_cache_nullify( mg_cache )
-        use precision
-        implicit none
-
-        type(MGCAMB_timestep_cache),  intent(inout) :: mg_cache      !< cache containing the time-dependent quantities
-
-        ! 1. Background quantities
-        mg_cache%adotoa     = 0._dl
-        mg_cache%Hdot       = 0._dl
-        mg_cache%grho       = 0._dl
-        mg_cache%gpres      = 0._dl
-        mg_cache%grhob_t    = 0._dl
-        mg_cache%grhoc_t    = 0._dl
-        mg_cache%grhog_t    = 0._dl
-        mg_cache%grhor_t    = 0._dl
-        mg_cache%grhov_t    = 0._dl
-        mg_cache%gpresv_t   = 0._dl
-        mg_cache%grhonu_t   = 0._dl
-        mg_cache%gpresnu_t  = 0._dl
-
-        ! 2. Perturbation quantities
-        mg_cache%k          = 0._dl
-        mg_cache%k2         = 0._dl
-        mg_cache%dgrho      = 0._dl
-        mg_cache%dgq        = 0._dl
-        mg_cache%pidot_sum  = 0._dl
-        mg_cache%dgpi_w_sum = 0._dl
-        mg_cache%dgpi       = 0._dl
-        mg_cache%dgpi_diff  = 0._dl
-        mg_cache%dgpidot    = 0._dl
-        mg_cache%rhoDelta   = 0._dl
-        mg_cache%rhoDeltadot= 0._dl
-
-        ! 3. MG functions
-        mg_cache%mu         = 0._dl
-        mg_cache%mudot      = 0._dl
-        mg_cache%gamma      = 0._dl
-        mg_cache%gammadot   = 0._dl
-        mg_cache%q          = 0._dl
-        mg_cache%qdot       = 0._dl
-        mg_cache%r          = 0._dl
-        mg_cache%rdot       = 0._dl
-
-        !> 4. Perturbations evolution variables
-        mg_cache%z          = 0._dl
-        mg_cache%sigma      = 0._dl
-        mg_cache%sigmadot   = 0._dl
-        mg_cache%etak       = 0._dl
-        mg_cache%etadot     = 0._dl
-
-        !> 5. ISW and lensing realted quantities
-        mg_cache%MG_alpha   = 0._dl
-        mg_cache%MG_alphadot= 0._dl
-        mg_cache%MG_phi     = 0._dl
-        mg_cache%MG_phidot  = 0._dl
-        mg_cache%MG_psi     = 0._dl
-        mg_cache%MG_psidot  = 0._dl
-        mg_cache%MG_ISW     = 0._dl
-        mg_cache%MG_lensing = 0._dl
-        mg_cache%source1    = 0._dl
-        mg_cache%source3    = 0._dl
-
-    end subroutine
-
-    ! ---------------------------------------------------------------------------------------------
-    !> Subroutine that opens the MGCAMB cache files (for Debug)
-    subroutine MGCAMB_open_cache_files
-        use precision
-        implicit none
-
-        ! 1. Open sources file
-        open(unit=111, file=TRIM(mgcamb_par_cache%output_root) // 'MGCAMB_debug_sources.dat', status="new", &
-            & action="write")
-        write(111,*)  'k  ', 'a  ', 'MG_ISW  ', 'MG_Lensing  ', 'S_T  ', 'S_lensing'
-
-        ! 2 Open MG functions file
-        open(unit=222, file=TRIM(mgcamb_par_cache%output_root) // 'MGCAMB_debug_MG_fncs.dat', status="new",&
-            & action="write")
-        write(222,*)  'k  ', 'a  ', 'mu  ', 'gamma ', 'Q ', 'R ', 'Phi ', 'Psi ', 'dPhi ', 'dPsi '
-
-        ! 3. Open Einstein solutions file
-        open(unit=333, file=TRIM(mgcamb_par_cache%output_root) // 'MGCAMB_debug_EinsteinSol.dat', status="new",&
-            & action="write")
-        write(333,*) 'k  ', 'a  ', 'etak  ', 'z  ', 'sigma  ', 'etadot  ', 'sigmadot  '
-
-        ! 4. Open Perturbation solution file
-        open(unit=444, file=TRIM(mgcamb_par_cache%output_root) // 'MGCAMB_debug_PerturbSol.dat', status="new",&
-        & action="write")
-        write(444,*)  'k  ', 'a  ', 'dgrho  ', 'dgq  ', 'rhoDelta  ', 'dgpi  ', 'pidot_sum  ', 'dgpi_w_sum  '
-
-        ! 5. Open Background file
-        open(unit=555, file=TRIM(mgcamb_par_cache%output_root) // 'MGCAMB_debug_Background.dat', status="new",&
-            & action="write")
-        write(555,*)  'k  ', 'a  ', 'H  ', 'Hdot  ', 'grhov_t  ', 'gpresv_t  '
-
-    end subroutine MGCAMB_open_cache_files
 
 
-    ! ---------------------------------------------------------------------------------------------
-    !> Subroutine that closes the MGCAMB cache files (for Debug)
-    subroutine MGCAMB_close_cache_files
-        use precision
-        implicit none
-
-        close(111);close(222); close(333);close(444);close(555)
-
-    end subroutine MGCAMB_close_cache_files
-
-
-    ! ---------------------------------------------------------------------------------------------
-    !> Subroutine that prints the MGCAMB cache on a file
-    subroutine MGCAMB_dump_cache( a, mg_cache )
-        use precision
-        implicit none
-
-        real(dl), intent(in) :: a   !< scale factor
-        type(MGCAMB_timestep_cache),  intent(in) :: mg_cache      !< cache containing the time-dependent quantities
-        character(*), parameter :: cache_output_format = 'e18.8'
-
-
-        ! 1. Write the sources
-        write(111,'(14'//cache_output_format//')') mg_cache%k, a, mg_cache%MG_ISW, mg_cache%MG_Lensing,&
-                                                    & mg_cache%source1, mg_cache%source3
-
-        ! 2. Write the MG functions and the potentials
-        write(222,'(14'//cache_output_format//')') mg_cache%k, a, mg_cache%mu, mg_cache%gamma, mg_cache%q, mg_cache%r, &
-                                                & mg_cache%MG_phi, mg_cache%MG_psi, mg_cache%MG_phidot, mg_cache%MG_psidot
-
-        ! 3. Write the Einstein equations solutions
-        write(333,'(14'//cache_output_format//')') mg_cache%k, a, mg_cache%etak, mg_cache%z, mg_cache%sigma,&
-                                                & mg_cache%etadot,mg_cache%sigmadot
-
-        ! 4. Write the Perturbations Solutions
-        write(444,'(14'//cache_output_format//')') mg_cache%k, a, mg_cache%dgrho, mg_cache%dgq, mg_cache%rhoDelta,&
-                                                    & mg_cache%dgpi, mg_cache%pidot_sum, mg_cache%dgpi_w_sum
-
-        !5. Write the background
-        write(555,'(14'//cache_output_format//')') mg_cache%k, a, mg_cache%adotoa, mg_cache%Hdot, mg_cache%grhov_t,&
-                                                    & mg_cache%gpresv_t
-
-
-
-    end subroutine MGCAMB_dump_cache
 
 
 
