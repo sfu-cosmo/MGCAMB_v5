@@ -29,39 +29,23 @@ program tester
             InitPower%r = 1
             !we don't use r here since we generate the Cls separately
             !so set to 1, and then put in the ratio after calculating the Cls
-            write(*,*) "cacca", InitPower%r
     end select
     
-    select type(ModGravity=>CPcz%ModGravity)
-        class is (TMuGammaParameterization)
-            !ModGravity%MG_flag=1
-            call ModGravity%ReadParams( Ini )
-            write (*,*) "debug", ModGravity%B1
-        class default
-            write(*,*) "I'm here"
-    end select
-
     write(*,*) "set initial power spectrum"
 
     call Ini%Open( "test1_params.ini", bad, .false.)
-
-    write(*,*) "reopened ini file", bad
     
     select type(ModGravity=>CPcz%ModGravity)
         class is (TMuGammaParameterization)
-            !ModGravity%MG_flag=1
             call ModGravity%ReadParams( Ini )
-            write (*,*) "debug"
-            write (*,*) ModGravity%B1
         class default
-            write(*,*) "I'm here"
+            write(*,*) "ModGravity class is default"
     end select
     call Ini%Close()
 
-    !write (*,*) CPcz%ModGravity%B1
-
 
     CPcz%WantScalars = .true.
+    CPcz%WantVectors = .false.
     CPcz%WantTensors = .true.
 
     CPcz%Max_l=2500
@@ -69,7 +53,7 @@ program tester
     CPcz%Max_l_tensor=200
     CPcz%Max_eta_k_tensor=500
 
-    !call CAMB_GetResults(res, CPcz)
+    call CAMB_GetResults(res, CPcz)
 
 
     
