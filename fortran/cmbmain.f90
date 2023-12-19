@@ -132,7 +132,6 @@
     real(dl) starttime
     Type(ClTransferData), pointer :: ThisCT 
 
-    ! DEBUG!!! SPAM!!!
     logical :: DebugMGCAMB = .true.
 
     WantLateTime =  CP%DoLensing .or. State%num_redshiftwindows > 0 .or. CP%CustomSources%num_custom_sources>0
