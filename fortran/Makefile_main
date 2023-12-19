@@ -29,10 +29,20 @@ DLL_DIR ?= Releaselib
 CAMBLIB       = libcamb.a
 
 SOURCEFILES      =  constants config classes MathUtils subroutines DarkAge21cm \
-        DarkEnergyInterface SourceWindows massive_neutrinos model mgcamb results bessels \
+        DarkEnergyInterface SourceWindows massive_neutrinos ModGravityInterface model mgcamb results bessels \
         $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations_MG \
         $(REIONIZATION_FILES) $(POWERSPECTRUM_FILES) $(NONLINEAR_FILES) \
         lensing $(BISPECTRUM) cmbmain camb camb_python
+
+TESTFILES      =  constants config classes MathUtils subroutines DarkAge21cm \
+        DarkEnergyInterface SourceWindows massive_neutrinos ModGravityInterface model mgcamb results bessels \
+        $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations \
+        $(REIONIZATION_FILES) $(POWERSPECTRUM_FILES) $(NONLINEAR_FILES) \
+        lensing $(BISPECTRUM) cmbmain camb  unit_tester
+
+# TESTFILES = constants config classes MathUtils subroutines DarkAge21cm \
+#     DarkEnergyInterface SourceWindows massive_neutrinos ModGravityInterface model mgcamb results bessels \
+#     $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations $(REIONIZATION_FILES) $(POWERSPECTRUM_FILES) unit_tester
 
 
 F90WFLAGS     = -Waliasing -Wampersand -Wconversion -Wc-binding-type -Wintrinsics-std \
@@ -48,6 +58,8 @@ HEALPIXLD     = -L$(HEALPIXDIR)/lib -lhealpix -L$(FITSDIR) -l$(FITSLIB)
 
 
 CAMBOBJ       = $(patsubst %,%.o,$(SOURCEFILES))
+
+TESTOBJ = $(patsubst %,%.o,$(TESTFILES))
 
 FORUTILS_DIR ?= $(FORUTILSPATH)/$(OUTPUT_DIR)/
 python: FORUTILS_DIR=$(FORUTILSPATH)/$(DLL_DIR)/
@@ -97,6 +109,15 @@ camb: libforutils directories
 libcamb: libforutils directories
 	@$(MAKE) -C $(OUTPUT_DIR) $(MAKEOPT) -r -f ../Makefile_main $(CAMBLIB)
 
+
+test: libforutils directories 
+	@$(MAKE) -C $(OUTPUT_DIR) $(MAKEOPT) -r -f ../Makefile_main unit_tester
+
+unit_tester: $(TESTOBJ) | silent
+	$(F90C) $(F90FLAGS) $(MODOUT) $(IFLAG)$(OUTPUT_DIR)/ $(TESTOBJ) $(F90CRLINK) $(LIBLINK) -o unit_tester
+
+
+
 python: libforutils_so directories_so
 	@$(MAKE) -C $(DLL_DIR) $(MAKEOPT) -r -f ../Makefile_main camblib.so F90FLAGS="$(SF90FLAGS)" OUTPUT_DIR=$(DLL_DIR)
 
@@ -144,7 +165,6 @@ libforutils_so:
 libforutils:
 	@cd "$(FORUTILSPATH)" && \
 	$(MAKE) $(MAKEOPT) $(OUTPUT_DIR)
-
 
 clean:
 	-rm -f *.o *.a *.d core *.mod *.optrpt
