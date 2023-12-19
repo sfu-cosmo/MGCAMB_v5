@@ -462,25 +462,25 @@
             - (this%grhornomass + this%grhog)/this%grhocrit
         this%grhov=this%grhocrit*this%Omega_de
 
-        !> MGCAMB MOD START
-		mgcamb_par_cache%omegav = this%Omega_de
+        !!> MGCAMB MOD START
+		!mgcamb_par_cache%omegav = this%Omega_de
         
-        !fix last node of X_arr when running from fortran 
-        if(.not. P%ModGravity%MG_wrapped) then
-            if(DE_model == 3) then 
-                X_arr(2*nnode) = mgcamb_par_cache%omegav
-            end if 
-        end if
+        ! !fix last node of X_arr when running from fortran 
+        ! if(.not. P%ModGravity%MG_wrapped) then
+        !     if(DE_model == 3) then 
+        !         X_arr(2*nnode) = mgcamb_par_cache%omegav
+        !     end if 
+        ! end if
 
-        if(P%ModGravity%MG_wrapped) then
-            call MGCAMB_read_in_MGparams(P)
-        end if 
-        if (MG_flag == 1 .or. MG_flag == 5 .or. MG_flag == 6) then
-            call reconstruction_arr
-        end if
-        if(MG_flag /= 0) then
-            call MGCAMB_DE_perturb
-        end if
+        ! if(P%ModGravity%MG_wrapped) then
+        !     call MGCAMB_read_in_MGparams(P)
+        ! end if 
+        ! if (MG_flag == 1 .or. MG_flag == 5 .or. MG_flag == 6) then
+        !     call reconstruction_arr
+        ! end if
+        ! if(MG_flag /= 0) then
+        !     call MGCAMB_DE_perturb
+        ! end if
 		!> MGCAMB MOD END
 
         !  adotrad gives da/dtau in the asymptotic radiation-dominated era:

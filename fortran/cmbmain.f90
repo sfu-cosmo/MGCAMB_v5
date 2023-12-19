@@ -62,6 +62,7 @@
     use Recombination
     use RangeUtils
     use constants
+    use ModGravityInterface
     use DarkEnergyInterface
     use MathUtils
     implicit none
@@ -131,6 +132,9 @@
     real(dl) starttime
     Type(ClTransferData), pointer :: ThisCT 
 
+    ! DEBUG!!! SPAM!!!
+    logical :: DebugMGCAMB = .true.
+
     WantLateTime =  CP%DoLensing .or. State%num_redshiftwindows > 0 .or. CP%CustomSources%num_custom_sources>0
 
     if (CP%WantCls) then
@@ -180,7 +184,7 @@
     !> MGCAMB MOD START
     if ( DebugMGCAMB ) then
         write(*,*) 'Writing cache on files'
-        call MGCAMB_open_cache_files
+        call CP%ModGravity%MGCAMB_open_cache_files()
     end if
     !< MGCAMB MOD END
 
@@ -218,7 +222,7 @@
     !> MGCAMB MOD START
     if ( DebugMGCAMB ) then
         write(*,*) 'closing cache files'
-        call MGCAMB_close_cache_files
+        call CP%ModGravity%MGCAMB_close_cache_files()
     end if
     !< MGCMAB MOD END
 

@@ -9,7 +9,7 @@ module ModGravityInterface
 
     type, extends(TDarkSector) :: TModGravityModel
 
-        character(len=30) :: debug_root
+        character(len=30) :: debug_root = "debug_"
         real(dl):: GRtrans = 0.001
 
         ! Whether or not we want additional DE perturbations on top of what MGCAMB already
@@ -86,6 +86,9 @@ module ModGravityInterface
         procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
         procedure :: ResetCache => TModGravityModel_ResetCache
+        procedure :: MGCAMB_open_cache_files
+        procedure :: MGCAMB_close_cache_files
+        procedure :: MGCAMB_dump_cache
 
     end type TModGravityModel
 
@@ -211,7 +214,9 @@ module ModGravityInterface
 
     ! ---------------------------------------------------------------------------------------------
     !> Subroutine that closes the MGCAMB cache files (for Debug)
-    subroutine MGCAMB_close_cache_files
+    subroutine MGCAMB_close_cache_files( this )
+
+        class(TModGravityModel) :: this
 
         close(111);close(222); close(333);close(444);close(555)
 

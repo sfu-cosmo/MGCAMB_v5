@@ -3,6 +3,7 @@
     use classes
     use SourceWindows
     use constants, only : COBE_CMBTemp, default_nnu
+    use ModGravityInterface
     use DarkEnergyInterface
     use MassiveNu
     use config
@@ -150,8 +151,8 @@
         class(TInitialPower), allocatable :: InitPower
         class(TRecombinationModel), allocatable :: Recomb
         class(TReionizationModel), allocatable :: Reion
-        class(TDarkEnergyModel), allocatable :: DarkEnergy
         class(TModGravityModel), allocatable :: ModGravity
+        class(TDarkEnergyModel), allocatable :: DarkEnergy
         class(TNonLinearModel), allocatable :: NonLinearModel
         type(AccuracyParams)     :: Accuracy
         type(SourceTermParams)   :: SourceTerms

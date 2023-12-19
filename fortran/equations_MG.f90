@@ -2,29 +2,31 @@
 
     ! Background evolution, return d tau/ d a, where tau is the conformal time
     function dtauda(this,a)
-    use results
-    use DarkEnergyInterface
-    !> MGCAMB MOD START
-	use MGCAMB
-	!< MGCAMB MOD END
+        use results
+        use DarkEnergyInterface
+        !> MGCAMB MOD START
+	    use MGCAMB
+	    !< MGCAMB MOD END
 
-    implicit none
-    class(CAMBdata) :: this
-    real(dl), intent(in) :: a
-    real(dl) :: dtauda, grhoa2, grhov_t
+        implicit none
+        class(CAMBdata) :: this
+        real(dl), intent(in) :: a
+        real(dl) :: dtauda, grhoa2, grhov_t
 
-    !> MGCAMB MOD START
-	Type(MGCAMB_timestep_cache) :: mgcamb_cache
-	!< MGCAMB MOD END
+        !> MGCAMB MOD START
+	    ! Type(MGCAMB_timestep_cache) :: mgcamb_cache
+	    !< MGCAMB MOD END
 
-	!> MGCAMB MOD START: modifying the background
-	if ( MG_flag == 0 ) then
-    	call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
-		grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
-	else if( MG_flag /= 0 ) then !< MGCAMB modifies the background as well
-		call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
-		grhoa2 = this%grho_no_de(a) +  mgcamb_cache%grhov_t * a**2
-	end if
+        ! TODO: I'm not doing DE yet, fix this later!
+
+        !> MGCAMB MOD START: modifying the background
+        !if ( this%CP%ModGravity%MG_flag == 0 ) then
+            call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
+            grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
+        !else if( this%CP%ModGravity%MG_flag /= 0 ) then !< MGCAMB modifies the background as well
+        !    call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
+        !    grhoa2 = this%grho_no_de(a) +  State%CP%ModGravity%grhov_t * a**2
+        !end if
 
     if (grhoa2 <= 0) then
         call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
@@ -2258,7 +2260,7 @@
 	real(dl) MGDE_ISW, w_MGDE   
 
     !> MGCAMB MOD START: adding MGCAMB parameters
-    type(MGCAMB_timestep_cache) :: mgcamb_cache
+    !type(MGCAMB_timestep_cache) :: mgcamb_cache
     integer :: tempmodel
     real(dl) :: ISW_MG
     real(dl) :: dgpi_w_sum
@@ -2297,7 +2299,7 @@
     grhog_t=State%grhog/a2
 
     !> MGCAMB MOD START: computing DE density in MGCAMB
-    if ( MG_flag == 0 ) then !< default CAMB
+    if ( State%CP%ModGravity%MG_flag == 0 ) then !< default CAMB
         if (EV%is_cosmological_constant) then
             grhov_t = State%grhov * a2
             w_dark_energy_t = -1_dl
@@ -2306,10 +2308,11 @@
         end if
     else
       !  call State%CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)
-        call MGCAMB_timestep_cache_nullify( mgcamb_cache )
-        call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
-        grhov_t = mgcamb_cache%grhov_t
-		call MGCAMB_DE_EoS(a, w_MGDE)
+        !call MGCAMB_timestep_cache_nullify( mgcamb_cache )
+        !call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
+        !grhov_t = State%CP%ModGravity%grhov_t
+		!call MGCAMB_DE_EoS(a, w_MGDE)
+        write(*,*) "in progress"
     end if
     !< MGCAMB MOD END
 
@@ -2323,8 +2326,8 @@
 
     !> MGCAMB MOD START: switch MG on according to the model (in model 7 GRtrans is replaced by a_star)
     tempmodel = 0
-    if ( MG_flag /= 0 .and. a .ge. GRtrans ) then
-        tempmodel = MG_flag
+    if ( State%CP%ModGravity%MG_flag /= 0 .and. a .ge. State%CP%ModGravity%GRtrans ) then
+        tempmodel = State%CP%ModGravity%MG_flag
     end if
     !< MGCAMB MOD END
 
@@ -2422,7 +2425,7 @@
     pb43=4._dl/3*photbar
 
     !> MGCMAB MOD START: perturb DE only in default CAMB
-    if (.not. EV%is_cosmological_constant .and. MG_flag == 0)  then
+    if (.not. EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0)  then
         call State%CP%DarkEnergy%PerturbedStressEnergy(dgrho_de, dgq_de, &
             a, dgq, dgrho, grho, grhov_t, w_dark_energy_t, gpres_noDE, etak, &
             adotoa, k, EV%Kf(1), ay, ayprime, EV%w_ix)
@@ -2430,7 +2433,7 @@
         dgq = dgq + dgq_de
     end if
 
-    if (.not. MGDE_const .and. MG_flag /= 0 .and. MGDE_pert)  then
+    if (.not. State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)  then
         call State%CP%DarkEnergy%PerturbedStressEnergy(dgrho_de, dgq_de, &
             a, dgq, dgrho, grho, grhov_t, w_MGDE, gpres_noDE, etak, &
             adotoa, k, 1.d0, ay, ayprime, EV%w_ix)
@@ -2444,9 +2447,9 @@
 
         ! 1. Filling the cache
 
-        gpres = (grhog_t+grhor_t)/3.d0 + mgcamb_cache%gpresv_t + gpres_nu
-        mgcamb_cache%gpres  = gpres
-        mgcamb_cache%grho   = grho
+        gpres = (grhog_t+grhor_t)/3.d0 + State%CP%ModGravity%gpresv_t + gpres_nu
+        State%CP%ModGravity%gpres  = gpres
+        State%CP%ModGravity%grho   = grho
         dgpi                = 0.d0
         dgpi_w_sum          = 0.d0
 
@@ -2463,49 +2466,49 @@
 
         ! filling the cache
         ! background quantities
-        mgcamb_cache%grhob_t    = grhob_t
-        mgcamb_cache%grhoc_t    = grhoc_t
-        mgcamb_cache%grhor_t    = grhor_t
-        mgcamb_cache%grhog_t    = grhog_t
-        mgcamb_cache%gpresnu_t  = gpres_nu
-        mgcamb_cache%grhonu_t   = grhonu_t
+        State%CP%ModGravity%grhob_t    = grhob_t
+        State%CP%ModGravity%grhoc_t    = grhoc_t
+        State%CP%ModGravity%grhor_t    = grhor_t
+        State%CP%ModGravity%grhog_t    = grhog_t
+        State%CP%ModGravity%gpresnu_t  = gpres_nu
+        State%CP%ModGravity%grhonu_t   = grhonu_t
         ! perturbation quantities
-        mgcamb_cache%k          = k
-        mgcamb_cache%k2         = k2
-        mgcamb_cache%etak       = etak
+        State%CP%ModGravity%k          = k
+        State%CP%ModGravity%k2         = k2
+        State%CP%ModGravity%etak       = etak
         ! filling expansion history cache
-        mgcamb_cache%adotoa     = adotoa
-        mgcamb_cache%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
+        State%CP%ModGravity%adotoa     = adotoa
+        State%CP%ModGravity%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
         ! fill perturbation cache
-        mgcamb_cache%dgrho      = dgrho
-        mgcamb_cache%dgrhoc     = dgrhoc 
-        mgcamb_cache%dgq        = dgq
-        mgcamb_cache%dgpi_w_sum = dgpi_w_sum
-        mgcamb_cache%dgpi       = dgpi
-        mgcamb_cache%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
-        mgcamb_cache%rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
-        mgcamb_cache%dgqc       = dgqc      
+        State%CP%ModGravity%dgrho      = dgrho
+        State%CP%ModGravity%dgrhoc     = dgrhoc 
+        State%CP%ModGravity%dgq        = dgq
+        State%CP%ModGravity%dgpi_w_sum = dgpi_w_sum
+        State%CP%ModGravity%dgpi       = dgpi
+        State%CP%ModGravity%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
+        State%CP%ModGravity%rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
+        State%CP%ModGravity%dgqc       = dgqc      
 
         ! 2. Computing the MG functions
-        call MGCAMB_compute_MG_functions( a, mgcamb_par_cache, mgcamb_cache )
+        call State%CP%ModGravity%ComputeMGFunctions( a )
 
-        m = MGCAMB_M( a, mgcamb_par_cache, mgcamb_cache )
-        beta = MGCAMB_Beta( a, mgcamb_par_cache, mgcamb_cache )
-        mdot = MGCAMB_Mdot( a, mgcamb_par_cache, mgcamb_cache )
-        betadot = MGCAMB_Betadot( a, mgcamb_par_cache, mgcamb_cache )
+        !m = State%CP%ModGravity%mu
+        !beta = MGCAMB_Beta( a, mgcamb_par_cache, mgcamb_cache )
+        !mdot = MGCAMB_Mdot( a, mgcamb_par_cache, mgcamb_cache )
+        !betadot = MGCAMB_Betadot( a, mgcamb_par_cache, mgcamb_cache )
 
-        mu = mgcamb_cache%mu
-        mudot = mgcamb_cache%mudot
+        mu = State%CP%ModGravity%mu
+        mudot = State%CP%ModGravity%mudot
 
-        beta2 = beta**2
-        m2 = m**2
+        !beta2 = beta**2
+        !m2 = m**2
 
 
         ! 3. Computing the shear perturbation sigma
-        call MGCAMB_compute_sigma( a, mgcamb_par_cache, mgcamb_cache )
-        sigma = mgcamb_cache%sigma
+        call State%CP%ModGravity%Computesigma( a )
+        sigma = State%CP%ModGravity%sigma
 
-        MG_alpha = mgcamb_cache%MG_alpha
+        MG_alpha = State%CP%ModGravity%MG_alpha
 
 
         ! 4. Computing pidot quantities (sigma is necessary)
@@ -2634,13 +2637,13 @@
 
         ! 5. Compute Z
         ! fill the cache
-        mgcamb_cache%pidot_sum = pidot_sum
+        State%CP%ModGravity%pidot_sum = pidot_sum
 
         ! calculate z
-        call MGCAMB_compute_z( a, mgcamb_par_cache, mgcamb_cache )
-        z           = mgcamb_cache%z
-        sigmadot    = mgcamb_cache%sigmadot
-        etadot      = mgcamb_cache%etadot
+        call State%CP%ModGravity%Computez( a )
+        z           = State%CP%ModGravity%z
+        sigmadot    = State%CP%ModGravity%sigmadot
+        etadot      = State%CP%ModGravity%etadot
 
         ayprime(ix_etak)= k*etadot
 
@@ -2674,7 +2677,7 @@
 
         if(CDM_flag == 1) then !CDM QSA
 
-            clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl*mgcamb_cache%grhoc_t*MG_alpha*adotoa) &
+            clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl*State%CP%ModGravity%grhoc_t*MG_alpha*adotoa) &
                     /(k2+(m**2._dl)*a**2._dl)
 
         end if 
@@ -2728,11 +2731,11 @@
     if (EV%TightCoupling) then
         !  ddota/a
         !> MGCAMB MOD START
-        if ( MG_flag == 0 ) then
+        if ( State%CP%ModGravity%MG_flag == 0 ) then
             gpres = gpres_noDE + w_dark_energy_t*grhov_t
             adotdota=(adotoa*adotoa-gpres)/2
         else
-            gpres=gpres_noDE + mgcamb_cache%gpresv_t
+            gpres=gpres_noDE + State%CP%ModGravity%gpresv_t
             adotdota=(adotoa*adotoa-gpres)/2
         end if
         !< MGCAMB MOD END
@@ -2755,7 +2758,7 @@
                 ! Define shear derivative to first order
                 sigmadot = -2*adotoa*sigma-dgs/k+etak
             else
-                sigmadot = mgcamb_cache%sigmadot
+                sigmadot = State%CP%ModGravity%sigmadot
             end if
             !< MGCAMB MOD END
  
@@ -2790,7 +2793,7 @@
     if ( tempmodel == 4 ) then
 
         if(CDM_flag == 1) then  ! CDM QSA
-          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl*mgcamb_cache%grhoc_t*MG_alpha*adotoa)&
+          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl*State%CP%ModGravity%grhoc_t*MG_alpha*adotoa)&
                             /(k2+(m**2._dl)*a**2._dl)
 
         end if 
@@ -3078,7 +3081,7 @@
         end if
 		!>MGCAMB MOD START
         if ((EV%is_cosmological_constant .and. MG_flag == 0) &
-            .or. ( MGDE_const .and. MG_flag /= 0 .and. MGDE_pert)) then
+            .or. ( State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) then
             dgrho_de=0
             dgq_de=0
         end if
@@ -3094,13 +3097,13 @@
         end if
 
         !> MGCAMB MOD START: modifying hte expansion history
-        if ( MG_flag == 0 ) then
+        if ( State%CP%ModGravity%MG_flag == 0 ) then
             gpres = gpres_noDE + w_dark_energy_t*grhov_t
         else
-            gpres= gpres_noDE  + mgcamb_cache%gpresv_t
+            gpres= gpres_noDE  + State%CP%ModGravity%gpresv_t
         end if
 
-		if(MG_flag == 0 ) then
+		if( State%CP%ModGravity%MG_flag == 0 ) then
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
                 State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
                 gpres, w_dark_energy_t, State%grhok, adotoa, &
@@ -3120,9 +3123,9 @@
 
         !> MGCAMB MOD START
         if ( tempmodel /= 0 ) then
-            mgcamb_cache%dgpi_diff = dgpi_diff
+            State%CP%ModGravity%dgpi_diff = dgpi_diff
             ! redefining pidot_sum (more accurate)
-            mgcamb_cache%pidot_sum = pidot_sum
+            State%CP%ModGravity%pidot_sum = pidot_sum
         end if
         !< MGCAMB MOD END
 
@@ -3132,7 +3135,7 @@
             psiN = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + 2._dl*dgpi)/(2*k2)
             phiN = -psiN - ((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + dgpi)/k2
         else
-           phi = (mgcamb_cache%MG_psi+mgcamb_cache%MG_phi)/2._dl
+           phi = (State%CP%ModGravity%MG_psi+State%CP%ModGravity%MG_phi)/2._dl
         end if
         !< MGCAMB MOD END
 
@@ -3151,7 +3154,7 @@
             if ( tempmodel == 0 ) then
                 EV%OutputTransfer(Transfer_Weyl) = k2*phi
             else
-                EV%OutputTransfer(Transfer_Weyl) = (mgcamb_cache%MG_psi+mgcamb_cache%MG_phi)*k**2._dl/2._dl
+                EV%OutputTransfer(Transfer_Weyl) = (State%CP%ModGravity%MG_psi+State%CP%ModGravity%MG_phi)*k**2._dl/2._dl
             end if
             !< MGCAMB MOD END
 
@@ -3219,12 +3222,12 @@
             else
 
                 ! compute MG ISW
-                call MGCAMB_compute_ISW( a, mgcamb_par_cache, mgcamb_cache )
+                call State%CP%ModGravity%ComputeISW( a )
 
-                ISW = exptau * (mgcamb_cache%MG_ISW - 2._dl*MGDE_ISW)
-				phidot = (mgcamb_cache%MG_ISW - 2._dl*MGDE_ISW)/2._dl
+                ISW = exptau * (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)
+				phidot = (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)/2._dl
 
-                sigmadot = mgcamb_cache%sigmadot
+                sigmadot = State%CP%ModGravity%sigmadot
 
                 polter      = pig/10+9._dl/15*E(2)
                 polterdot   = 9._dl/15._dl*Edot(2) + 0.1_dl*pigdot
@@ -3233,16 +3236,16 @@
                 !EV%OutputSources(1) = ISW+&
                 !    visibility* (clxg/4.D0 +polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*&
                 !    opacity/16.D0-9.D0/16.D0*dopacity* polter/k2&
-                !    + 2.1d0*mgcamb_cache%MG_alphadot + 3.D0/40.D0 *qgdot/k &!+21.D0/10.D0*dgpi/k2&
+                !    + 2.1d0*State%CP%ModGravity%MG_alphadot + 3.D0/40.D0 *qgdot/k &!+21.D0/10.D0*dgpi/k2&
                 !    +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
-                !    + (mgcamb_cache%MG_alpha+vb/k+30.0d0/8.0d0 *polterdot/k2)*dvisibility&
+                !    + (State%CP%ModGravity%MG_alpha+vb/k+30.0d0/8.0d0 *polterdot/k2)*dvisibility&
                 !    + ddvisibility*30.0d0/16.0d0*polter/k2
 
                 ! new version
                 EV%OutputSources(1) = ISW&
                 & +visibility* (clxg/4.D0 + polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*opacity/16.D0 &
                 & -9.D0/16.D0*dopacity*polter/k2&
-                & + 21.D0/10.D0*mgcamb_cache%MG_alphadot + 3.D0/40.D0*qgdot/k &
+                & + 21.D0/10.D0*State%CP%ModGravity%MG_alphadot + 3.D0/40.D0*qgdot/k &
                 & +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
                 & +((-9.D0/160.D0*pig-27.D0/80.D0*E(2))/k**2*opacity+(11.D0/10.D0*sigma- &
                 & 3.D0/8.D0*EV%Kf(2)*E(3)+vb-9.D0/80.D0*EV%Kf(2)*octg+3.D0/40.D0*qg)/k-(- &
@@ -3268,9 +3271,11 @@
                     EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                     !We include the lensing factor of two here
                     else
-                        call MGCAMB_compute_lensing( a, mgcamb_par_cache, mgcamb_cache )
-                        EV%OutputSources(3) = -mgcamb_cache%MG_lensing*f_K(tau-State%tau_maxvis)/&
-                                            & (f_K(tau0-State%tau_maxvis)*ang_dist)
+                        ! TODO
+                        write (*,*) "in progress"
+                        !call MGCAMB_compute_lensing( a, mgcamb_par_cache, mgcamb_cache )
+                        !EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
+                        !                    & (f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
                     end if 
                 end if
@@ -3298,7 +3303,7 @@
                     call c_f_procpointer(CP%CustomSources%c_source_func,custom_sources_func)
 
                     !>MGCAMB MOD START
-					if(MG_flag==0) then
+					if(State%CP%ModGravity%MG_flag==0) then
                         call custom_sources_func(EV%CustomSources, tau, a, adotoa, grho, gpres,w_dark_energy_t, cs2_de, &
                             grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t, &
                             k, etak, ayprime(ix_etak), phi, phidot, sigma, sigmadot, &
@@ -3332,62 +3337,62 @@
             if ( tempmodel == 0 ) then
                 ! fill the cache with the GR stuff, then dump the cache,
                 ! useful for comparing default CAMB with MGCAMB in GR limit
-                mgcamb_cache%grhob_t    = grhob_t
-                mgcamb_cache%grhoc_t    = grhoc_t
-                mgcamb_cache%grhor_t    = grhor_t
-                mgcamb_cache%grhog_t    = grhog_t
-                mgcamb_cache%gpresnu_t  = gpres_nu
-                mgcamb_cache%grhonu_t   = grhonu_t
+                State%CP%ModGravity%grhob_t    = grhob_t
+                State%CP%ModGravity%grhoc_t    = grhoc_t
+                State%CP%ModGravity%grhor_t    = grhor_t
+                State%CP%ModGravity%grhog_t    = grhog_t
+                State%CP%ModGravity%gpresnu_t  = gpres_nu
+                State%CP%ModGravity%grhonu_t   = grhonu_t
                 ! perturbation quantities
-                mgcamb_cache%k          = k
-                mgcamb_cache%k2         = k2
-                mgcamb_cache%etak       = etak
+                State%CP%ModGravity%k          = k
+                State%CP%ModGravity%k2         = k2
+                State%CP%ModGravity%etak       = etak
                 ! filling expansion history cache
-                mgcamb_cache%adotoa     = adotoa
-                mgcamb_cache%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
+                State%CP%ModGravity%adotoa     = adotoa
+                State%CP%ModGravity%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
                 ! fill perturbation cache
-                mgcamb_cache%dgrho      = dgrho
-                mgcamb_cache%dgq        = dgq
-                mgcamb_cache%dgpi_w_sum = dgpi_w_sum
-                mgcamb_cache%dgpi       = dgpi
-                mgcamb_cache%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
-                mgcamb_cache%pidot_sum  = pidot_sum
+                State%CP%ModGravity%dgrho      = dgrho
+                State%CP%ModGravity%dgq        = dgq
+                State%CP%ModGravity%dgpi_w_sum = dgpi_w_sum
+                State%CP%ModGravity%dgpi       = dgpi
+                State%CP%ModGravity%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
+                State%CP%ModGravity%pidot_sum  = pidot_sum
 
                 ! Einstein solutions
-                mgcamb_cache%z          = z
-                mgcamb_cache%sigma      = sigma
-                mgcamb_cache%sigmadot   = sigmadot
-                mgcamb_cache%etadot     = ayprime(2)/k
-                mgcamb_cache%MG_Psi     = 0._dl         !< this needs to be changed
-                mgcamb_cache%MG_Phi     = 0._dl         !< this needs to be changed
-                mgcamb_cache%MG_Psidot  = 0._dl         !< this needs to be changed
-                mgcamb_cache%MG_Phidot  = 0._dl         !< this needs to be changed
-                mgcamb_cache%MG_ISW     = 2._dl*phidot
-                mgcamb_cache%MG_lensing = 2._dl*phi
+                State%CP%ModGravity%z          = z
+                State%CP%ModGravity%sigma      = sigma
+                State%CP%ModGravity%sigmadot   = sigmadot
+                State%CP%ModGravity%etadot     = ayprime(2)/k
+                State%CP%ModGravity%MG_Psi     = 0._dl         !< this needs to be changed
+                State%CP%ModGravity%MG_Phi     = 0._dl         !< this needs to be changed
+                State%CP%ModGravity%MG_Psidot  = 0._dl         !< this needs to be changed
+                State%CP%ModGravity%MG_Phidot  = 0._dl         !< this needs to be changed
+                State%CP%ModGravity%MG_ISW     = 2._dl*phidot
+                State%CP%ModGravity%MG_lensing = 2._dl*phi
 
                 ! MG functions
-                mgcamb_cache%mu = 1._dl
-                mgcamb_cache%gamma = 1._dl
-                mgcamb_cache%q = 1._dl
-                mgcamb_cache%r = 1._dl
+                State%CP%ModGravity%mu = 1._dl
+                State%CP%ModGravity%gamma = 1._dl
+                State%CP%ModGravity%q = 1._dl
+                State%CP%ModGravity%r = 1._dl
 
             end if
 
             if (associated(EV%OutputSources)) then
-                 mgcamb_cache%source1 = EV%OutputSources(1)
+                 State%CP%ModGravity%source1 = EV%OutputSources(1)
 
                 if (size(EV%OutputSources) > 2) then
-                    mgcamb_cache%source3 = EV%OutputSources(3)
+                    State%CP%ModGravity%source3 = EV%OutputSources(3)
                 else
-                    mgcamb_cache%source3 = 0._dl
+                    State%CP%ModGravity%source3 = 0._dl
                 end if
             else
-                mgcamb_cache%source1 = 0._dl
-                mgcamb_cache%source3 = 0._dl
+                State%CP%ModGravity%source1 = 0._dl
+                State%CP%ModGravity%source3 = 0._dl
             end if
 
             ! dump cache into files
-            call MGCAMB_dump_cache( a, mgcamb_cache )
+            call State%CP%ModGravity%MGCAMB_dump_cache( a )
         end if
         !< MGCAMB MOD END
 

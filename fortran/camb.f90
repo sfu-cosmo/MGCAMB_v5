@@ -1,6 +1,7 @@
     !Interface module for CAMB. Call CAMB_GetResults to do the work.
 
     module CAMB
+    !use ModGravityInterface
     use Precision
     use results
     use GaugeInterface
@@ -208,6 +209,7 @@
     subroutine CAMB_SetDefParams(P)
     use NonLinear
     use Recombination
+    use MGCAMB
     type(CAMBparams), intent(inout), target :: P
     type(CAMBparams) :: emptyP
 
@@ -217,11 +219,12 @@
     P%Nu_mass_fractions=0
 
     allocate(THalofit::P%NonLinearModel)
+    !> MGCAMB MOD START
+    ! TODO: for now the default is the mu/gamma parameterisation
+    allocate(TMuGammaParameterization::P%ModGravity)
+    !> MGCAMB MOD END
     allocate(TDarkEnergyFluid::P%DarkEnergy)
     allocate(TInitialPowerLaw::P%InitPower)
-    !> MGCAMB MOD START
-    allocate(TModGravityModel::P%ModGravity)
-    !> MGCAMB MOD END
     allocate(TRecfast::P%Recomb)
     allocate(TTanhReionization::P%Reion)
 
@@ -416,22 +419,23 @@
     !  Read initial parameters.
     DarkEneryModel = UpperCase(Ini%Read_String_Default('dark_energy_model', 'fluid'))
     if (allocated(P%DarkEnergy)) deallocate(P%DarkEnergy)
+    ! SPAM!!! DEBUG!!
 	!> MGCAMB MOD START
-    if ((DarkEneryModel == 'FLUID' .and. MG_flag == 0) .or.  &
-		(MG_flag /= 0 .and. (DE_model == 0 .or. DE_model == 1 .or. DE_model == 3))) then
+    !if ((DarkEneryModel == 'FLUID' .and. MG_flag == 0) .or.  &
+	!	(MG_flag /= 0 .and. (DE_model == 0 .or. DE_model == 1 .or. DE_model == 3))) then
         allocate (TDarkEnergyFluid::P%DarkEnergy)
-    else if ((DarkEneryModel == 'PPF' .and. MG_flag == 0) .or. &
-		(MG_flag /= 0 .and. DE_model == 2)) then
-        allocate (TDarkEnergyPPF::P%DarkEnergy)
+    !else if ((DarkEneryModel == 'PPF' .and. MG_flag == 0) .or. &
+!		(MG_flag /= 0 .and. DE_model == 2)) then
+ !       allocate (TDarkEnergyPPF::P%DarkEnergy)
 	!< MGCAMB MOD END
-    else if (DarkEneryModel == 'AXIONEFFECTIVEFLUID') then
-        allocate (TAxionEffectiveFluid::P%DarkEnergy)
-    else if (DarkEneryModel == 'EARLYQUINTESSENCE') then
-        allocate (TEarlyQuintessence::P%DarkEnergy)
-    else
-        ErrMsg = 'Unknown dark energy model: '//trim(DarkEneryModel)
-        return
-    end if
+    !else if (DarkEneryModel == 'AXIONEFFECTIVEFLUID') then
+    !    allocate (TAxionEffectiveFluid::P%DarkEnergy)
+    !else if (DarkEneryModel == 'EARLYQUINTESSENCE') then
+    !    allocate (TEarlyQuintessence::P%DarkEnergy)
+    !else
+    !    ErrMsg = 'Unknown dark energy model: '//trim(DarkEneryModel)
+    !    return
+    !end if
     call P%DarkEnergy%ReadParams(Ini)
 
     P%h0 = Ini%Read_Double('hubble')
@@ -449,15 +453,15 @@
     !> MGCAMB MOD START
     outroot = Ini%Read_String('output_root')
 
-    mgcamb_par_cache%omegab = P%ombh2/(P%H0/100)**2
-    mgcamb_par_cache%omegac = P%omch2/(P%H0/100)**2
-    mgcamb_par_cache%h0     = P%H0
-    mgcamb_par_cache%h0_Mpc = P%H0 * (1.d3/c)
-    mgcamb_par_cache%output_root = outroot
+    !mgcamb_par_cache%omegab = P%ombh2/(P%H0/100)**2
+    !mgcamb_par_cache%omegac = P%omch2/(P%H0/100)**2
+    !mgcamb_par_cache%h0     = P%H0
+    !mgcamb_par_cache%h0_Mpc = P%H0 * (1.d3/c)
+    !mgcamb_par_cache%output_root = outroot
     !< MGCAMB MOD END
 
     !> MGCAMB MOD START: reading models and params
-    call MGCAMB_read_model_params( mgcamb_par_cache, Ini )
+    !call MGCAMB_read_model_params( mgcamb_par_cache, Ini )
     !< MGCAMB MOD END
 
 

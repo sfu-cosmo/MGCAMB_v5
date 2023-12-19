@@ -1,24 +1,25 @@
-    ! Equations module for background and ! To avoid circular module issues, some things are not part of module
+    ! Equations module for background and 
+    ! To avoid circular module issues, some things are not part of module
 
     ! Background evolution, return d tau/ d a, where tau is the conformal time
     function dtauda(this,a)
-    use results
-    use DarkEnergyInterface
-    implicit none
-    class(CAMBdata) :: this
-    real(dl), intent(in) :: a
-    real(dl) :: dtauda, grhoa2, grhov_t
+        use results
+        use DarkEnergyInterface
+        implicit none
+        class(CAMBdata) :: this
+        real(dl), intent(in) :: a
+        real(dl) :: dtauda, grhoa2, grhov_t
 
-    call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
+        call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
 
-    !  8*pi*G*rho*a**4.
-    grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
-    if (grhoa2 <= 0) then
-        call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
-        dtauda = 0
-    else
-        dtauda = sqrt(3 / grhoa2)
-    end if
+        !  8*pi*G*rho*a**4.
+        grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
+        if (grhoa2 <= 0) then
+            call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
+            dtauda = 0
+        else
+            dtauda = sqrt(3 / grhoa2)
+        end if
 
     end function dtauda
 
@@ -140,7 +141,9 @@
         !Workaround for ifort, gives class pointer to avoid creating temps and huge slow down
         class(TThermoData), pointer :: ThermoData => null()
 
-        real, pointer :: OutputTransfer(:) => null()
+        ! DS note to self: in equations_MG this is real(dl) and it seems to be required by cmbmain
+        ! for type consistency, but was just real in original equations file - reasons unknown
+        real(dl), pointer :: OutputTransfer(:) => null()
         real(dl), pointer :: OutputSources(:) => null()
         real(dl), pointer :: CustomSources(:) => null()
         integer :: OutputStep = 0
@@ -2123,7 +2126,8 @@
     implicit none
     type(EvolutionVars) EV
     real(dl), intent(in) :: tau
-    real, target :: Arr(:)
+    ! DS note to self: see earlier comment on types
+    real(dl), target :: Arr(:)
     real(dl) y(EV%nvar),yprime(EV%nvar)
 
     yprime = 0
