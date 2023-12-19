@@ -183,7 +183,7 @@
 
     !> MGCAMB MOD START
     if ( DebugMGCAMB ) then
-        write(*,*) 'Writing cache on files'
+        write(*,*) 'Opening cache files'
         call CP%ModGravity%MGCAMB_open_cache_files()
     end if
     !< MGCAMB MOD END
