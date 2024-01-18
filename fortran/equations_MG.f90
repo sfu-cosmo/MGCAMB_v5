@@ -13,27 +13,20 @@
         real(dl), intent(in) :: a
         real(dl) :: dtauda, grhoa2, grhov_t
 
-        !> MGCAMB MOD START
-	    ! Type(MGCAMB_timestep_cache) :: mgcamb_cache
-	    !< MGCAMB MOD END
-
         ! TODO: I'm not doing DE yet, fix this later!
+        ! TODO: check this is fixed now
 
-        !> MGCAMB MOD START: modifying the background
-        !if ( this%CP%ModGravity%MG_flag == 0 ) then
-            call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
-            grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
-        !else if( this%CP%ModGravity%MG_flag /= 0 ) then !< MGCAMB modifies the background as well
-        !    call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
-        !    grhoa2 = this%grho_no_de(a) +  State%CP%ModGravity%grhov_t * a**2
-        !end if
+        call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
 
-    if (grhoa2 <= 0) then
-        call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
-        dtauda = 0
-    else
-        dtauda = sqrt(3 / grhoa2)
-    end if
+        !  8*pi*G*rho*a**4.
+        grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
+
+        if (grhoa2 <= 0) then
+            call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
+            dtauda = 0
+        else
+            dtauda = sqrt(3 / grhoa2)
+        end if
 
     end function dtauda
 
@@ -579,8 +572,8 @@
 
     !Dark energy
     !> MGCAMB MOD START: 
-    if ((.not. CP%DarkEnergy%is_cosmological_constant .and. MG_flag == 0) &
-        .or. (.not. MGDE_const .and. MG_flag /= 0 .and. MGDE_pert)) then
+    if ((.not. CP%DarkEnergy%is_cosmological_constant .and. CP%ModGravity%MG_flag == 0) &
+        .or. (.not. CP%ModGravity%MGDE_const .and. CP%ModGravity%MG_flag /= 0 .and. CP%ModGravity%MGDE_pert)) then
         EV%w_ix = neq + 1
         neq = neq + CP%DarkEnergy%num_perturb_equations
         maxeq = maxeq + CP%DarkEnergy%num_perturb_equations
@@ -2298,23 +2291,14 @@
     grhor_t=State%grhornomass/a2
     grhog_t=State%grhog/a2
 
-    !> MGCAMB MOD START: computing DE density in MGCAMB
-    if ( State%CP%ModGravity%MG_flag == 0 ) then !< default CAMB
-        if (EV%is_cosmological_constant) then
-            grhov_t = State%grhov * a2
-            w_dark_energy_t = -1_dl
-        else
-            call State%CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)
-        end if
+    ! NOTE to self: there used to be a double case where, if MG_flag/=0
+    ! the the DE EoS was computed by MGCAMB. I see no reason why that should be
+    if (EV%is_cosmological_constant) then
+        grhov_t = State%grhov * a2
+        w_dark_energy_t = -1_dl
     else
-      !  call State%CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)
-        !call MGCAMB_timestep_cache_nullify( mgcamb_cache )
-        !call MGCAMB_DarkEnergy( a, mgcamb_par_cache, mgcamb_cache )
-        !grhov_t = State%CP%ModGravity%grhov_t
-		!call MGCAMB_DE_EoS(a, w_MGDE)
-        write(*,*) "in progress"
+        call State%CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)
     end if
-    !< MGCAMB MOD END
 
     !total perturbations: matter terms first, then add massive nu, de and radiation
     !  8*pi*a*a*SUM[rho_i*clx_i]
@@ -2331,7 +2315,8 @@
     end if
     !< MGCAMB MOD END
 
-    if(tempmodel == 4 .and. CDM_flag == 1) then ! CDM QSA
+    ! NOTE to self: verify whether this should be kept in future
+    if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
         dgq=grhob_t*vb + grhoc_t*vc
     else
         dgq=grhob_t*vb
@@ -2350,15 +2335,15 @@
     grho = grho_matter+grhor_t+grhog_t+grhov_t
     gpres_noDE = gpres_nu + (grhor_t + grhog_t)/3
 
-    !> MGCAMB MOD START: MGCAMB working only with flat models
+    !> MGCAMB MOD START: MGCAMB works only with flat models
     if (State%flat) then
         adotoa=sqrt(grho/3)
         cothxor=1._dl/tau
-    else if ( MG_flag == 0 ) then
+    else if ( State%CP%ModGravity%MG_flag == 0 ) then
         adotoa=sqrt((grho+State%grhok)/3._dl)
         cothxor=1._dl/State%tanfunc(tau/State%curvature_radius)/State%curvature_radius
     else
-        Stop " MGCAMB is working for flat universe at the moment. Please check www.sfu.ca/~aha25/MGCAMB.htmlfor updates."
+        Stop " MGCAMB works only for flat universe at the moment. Please check www.sfu.ca/~aha25/MGCAMB.html for updates."
     end if
     !< MGCAMB MOD END
 
@@ -2424,19 +2409,12 @@
     photbar=grhog_t/grhob_t
     pb43=4._dl/3*photbar
 
-    !> MGCMAB MOD START: perturb DE only in default CAMB
-    if (.not. EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0)  then
+    !> MGCMAB MOD START
+    ! note to self: that was the point of old confusion
+    if (.not. EV%is_cosmological_constant .and. State%CP%ModGravity%MGDE_pert )  then
         call State%CP%DarkEnergy%PerturbedStressEnergy(dgrho_de, dgq_de, &
             a, dgq, dgrho, grho, grhov_t, w_dark_energy_t, gpres_noDE, etak, &
             adotoa, k, EV%Kf(1), ay, ayprime, EV%w_ix)
-        dgrho = dgrho + dgrho_de
-        dgq = dgq + dgq_de
-    end if
-
-    if (.not. State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)  then
-        call State%CP%DarkEnergy%PerturbedStressEnergy(dgrho_de, dgq_de, &
-            a, dgq, dgrho, grho, grhov_t, w_MGDE, gpres_noDE, etak, &
-            adotoa, k, 1.d0, ay, ayprime, EV%w_ix)
         dgrho = dgrho + dgrho_de
         dgq = dgq + dgq_de
     end if
@@ -2444,6 +2422,9 @@
 
     !> MGCAMB MOD START: computing Z, sigma in MG
     if ( tempmodel /= 0 ) then
+
+        ! NOTE TO SELF: the cache won't be needed - presumably somewhere in the MG modules
+        ! I will have to call the camb quantities instead of the cache quantities
 
         ! 1. Filling the cache
 
@@ -2664,10 +2645,10 @@
     !< MGCAMB MOD END
 
     !> MGCAMB MOD START: DE perturbed only if not MG
-    if (.not. EV%is_cosmological_constant .and. MG_flag == 0 ) &
+    if (.not. EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0 ) &
         call State%CP%DarkEnergy%PerturbationEvolve(ayprime, w_dark_energy_t, &
         EV%w_ix, a, adotoa, k, z, ay)
-    if (.not. MGDE_const .and. MG_flag /= 0 .and. MGDE_pert) &
+    if (.not. State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert ) &
         call State%CP%DarkEnergy%PerturbationEvolve(ayprime, w_MGDE, &
         EV%w_ix, a, adotoa, k, z, ay)
      !< MGCAMB MOD END
@@ -2677,7 +2658,7 @@
 
         if(CDM_flag == 1) then !CDM QSA
 
-            clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl*State%CP%ModGravity%grhoc_t*MG_alpha*adotoa) &
+            clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl * State%CP%ModGravity%grhoc_t * MG_alpha*adotoa) &
                     /(k2+(m**2._dl)*a**2._dl)
 
         end if 
@@ -3080,7 +3061,7 @@
             end if
         end if
 		!>MGCAMB MOD START
-        if ((EV%is_cosmological_constant .and. MG_flag == 0) &
+        if ((EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0) &
             .or. ( State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) then
             dgrho_de=0
             dgq_de=0
@@ -3108,7 +3089,7 @@
                 State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
                 gpres, w_dark_energy_t, State%grhok, adotoa, &
                 EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
-		else if(MG_flag /= 0 .and. (.not. MGDE_const) .and. MGDE_pert) then
+		else if(State%CP%ModGravity%MG_flag /= 0 .and. (.not. State%CP%ModGravity%MGDE_const) .and. State%CP%ModGravity%MGDE_pert) then
 			diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
 				State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
 				gpres, w_MGDE, State%grhok, adotoa, &
@@ -3123,6 +3104,7 @@
 
         !> MGCAMB MOD START
         if ( tempmodel /= 0 ) then
+            ! NOTE TO SELF this looks like a cache to me
             State%CP%ModGravity%dgpi_diff = dgpi_diff
             ! redefining pidot_sum (more accurate)
             State%CP%ModGravity%pidot_sum = pidot_sum
@@ -3333,6 +3315,7 @@
         if ( DebugMGCAMB ) then
 
             !write(*,*) 'writing cache at a,k:', a,k
+            ! NOTE TO SELF: this whole stuff can go
 
             if ( tempmodel == 0 ) then
                 ! fill the cache with the GR stuff, then dump the cache,

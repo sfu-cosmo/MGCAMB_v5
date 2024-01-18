@@ -80,27 +80,32 @@
     class(TCAMBdata), intent(in), target :: State
 
     call this%TDarkEnergyEqnOfState%Init(State)
-    ! TODO: I will have to make sure this is passed before this init happens
-	if(this%MG_flag==0) then
-        if (this%is_cosmological_constant) then
-            this%num_perturb_equations = 0
-        else
-            if (this%use_tabulated_w) then
-                if (any(this%equation_of_state%F<-1)) &
-                    error stop 'Fluid dark energy model does not allow w crossing -1'
-            elseif (this%wa/=0 .and. &
-                ((1+this%w_lam < -1.e-6_dl) .or. 1+this%w_lam + this%wa < -1.e-6_dl)) then
-                error stop 'Fluid dark energy model does not allow w crossing -1'
+
+    select type (S => State)
+        class is (CAMBdata)
+            if (S%CP%ModGravity%MG_flag==0) then
+                if (this%is_cosmological_constant) then
+                    this%num_perturb_equations = 0
+                else
+                    if (this%use_tabulated_w) then
+                        if (any(this%equation_of_state%F<-1)) &
+                            error stop 'Fluid dark energy model does not allow w crossing -1'
+                    elseif (this%wa/=0 .and. &
+                        ((1+this%w_lam < -1.e-6_dl) .or. 1+this%w_lam + this%wa < -1.e-6_dl)) then
+                        error stop 'Fluid dark energy model does not allow w crossing -1'
+                    end if
+                    this%num_perturb_equations = 2
+                end if
+            else
+                ! TODO, NOTE TO SELF: this is a repetition, remove it later
+                if (S%CP%ModGravity%MGDE_const) then
+                    this%num_perturb_equations = 0
+                else
+                    this%num_perturb_equations = 2
+                end if
             end if
-            this%num_perturb_equations = 2
-        end if
-	else
-		if (this%MGDE_const) then
-			this%num_perturb_equations = 0
-		else
-			this%num_perturb_equations = 2
-		end if
-	end if
+    end select
+
     end subroutine TDarkEnergyFluid_Init
 
 

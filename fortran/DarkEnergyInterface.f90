@@ -6,21 +6,25 @@ module DarkEnergyInterface
 
     private
 
-    type, extends(TDarkSector) :: TDarkEnergyModel
+    type, extends(TCambComponent) :: TDarkEnergyModel
         logical :: is_cosmological_constant = .true.
         integer :: num_perturb_equations = 0
+        !> MGCAMB MOD START
+        integer :: DE_model = 0
+        !< MGCAMB MOD END
+
     contains
-    procedure :: Init
-    procedure :: BackgroundDensityAndPressure
-    procedure :: PerturbedStressEnergy !Get density perturbation and heat flux for sources
-    procedure :: diff_rhopi_Add_Term
-    procedure :: PerturbationInitial
-    procedure :: PerturbationEvolve
-    procedure :: PrintFeedback
-    ! do not have to implement w_de or grho_de if BackgroundDensityAndPressure is inherited directly
-    procedure :: w_de
-    procedure :: grho_de
-    procedure :: Effective_w_wa !Used as approximate values for non-linear corrections
+        procedure :: Init
+        procedure :: BackgroundDensityAndPressure
+        procedure :: PerturbedStressEnergy !Get density perturbation and heat flux for sources
+        procedure :: diff_rhopi_Add_Term
+        procedure :: PerturbationInitial
+        procedure :: PerturbationEvolve
+        procedure :: PrintFeedback
+        ! do not have to implement w_de or grho_de if BackgroundDensityAndPressure is inherited directly
+        procedure :: w_de
+        procedure :: grho_de
+        procedure :: Effective_w_wa !Used as approximate values for non-linear corrections
     end type TDarkEnergyModel
 
     type, extends(TDarkEnergyModel) :: TDarkEnergyEqnOfState

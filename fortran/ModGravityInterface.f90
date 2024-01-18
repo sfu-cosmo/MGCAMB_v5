@@ -1,22 +1,32 @@
 module ModGravityInterface
     use classes
     use precision
-    use IniObjects
+    !use IniObjects
     implicit none
 
-    ! Base type for both dark energy and modified gravity
 
 
-    type, extends(TDarkSector) :: TModGravityModel
+    type, abstract, extends(TCambComponent) :: TModGravityModel
 
         character(len=30) :: debug_root = "debug_"
         real(dl):: GRtrans = 0.001
 
         ! Whether or not we want additional DE perturbations on top of what MGCAMB already
         ! provides in terms of the phenomenological functions
-        logical :: MGDE_pert = .False.
+        logical :: MGDE_pert = .false.
+
+        ! TODO: whether or not dark energy is a cosmological constant
+        ! this looks like a copy of a variable that's already in camb, and should be removed
+        logical :: MGDE_const = .true.
+
+        ! type of modified growth model
+        ! TODO: remove this flag from other places (e.g. dark sector mugamma - or set correctly)
+        integer :: MG_flag = 0
+        ! TODO: see if this is really needed
+        integer :: CDM_flag = 0
 
         ! 1. Background quantities
+        ! TODO: check whether they're a replica of camb variables
         real(dl) :: adotoa
         real(dl) :: Hdot
         real(dl) :: grho
@@ -80,17 +90,29 @@ module ModGravityInterface
         real(dl) :: source1
         real(dl) :: source3
 
+        procedure(ComputeMGFunctionsInterface), pointer :: ComputeMGFunctions
+
         contains
 
         procedure :: Init => TModGravityModel_Init
-        procedure, nopass :: PythonClass => TModGravityModel_PythonClass
-        procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
+        !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
+        !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
         procedure :: ResetCache => TModGravityModel_ResetCache
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
         procedure :: MGCAMB_dump_cache
 
     end type TModGravityModel
+
+
+    abstract interface
+        subroutine ComputeMGFunctionsInterface(this, a)
+            !use precision
+            import
+            class(TModGravityModel), intent(in) :: this
+            real(dl), intent(in) :: a
+        end subroutine ComputeMGFunctionsInterface
+    end interface
 
 
     contains
@@ -100,19 +122,19 @@ module ModGravityInterface
         class(TCAMBdata), intent(in), target :: State
     end subroutine TModGravityModel_Init
 
-    function TModGravityModel_PythonClass()
-        character(LEN=:), allocatable :: TModGravityModel_PythonClass
-        TModGravityModel_PythonClass = 'ModGravityModel'
-    end function TModGravityModel_PythonClass
+    ! function TModGravityModel_PythonClass()
+    !     character(LEN=:), allocatable :: TModGravityModel_PythonClass
+    !     TModGravityModel_PythonClass = 'ModGravityModel'
+    ! end function TModGravityModel_PythonClass
 
-    subroutine TModGravityModel_SelfPointer(cptr,P)
-    use iso_c_binding
-    Type(c_ptr) :: cptr
-    Type (TModGravityModel), pointer :: PType
-    class (TPythonInterfacedClass), pointer :: P
-    call c_f_pointer(cptr, PType)
-    P => PType
-    end subroutine TModGravityModel_SelfPointer
+    ! subroutine TModGravityModel_SelfPointer(cptr,P)
+    ! use iso_c_binding
+    ! Type(c_ptr) :: cptr
+    ! Type (TModGravityModel), pointer :: PType
+    ! class (TPythonInterfacedClass), pointer :: P
+    ! call c_f_pointer(cptr, PType)
+    ! P => PType
+    ! end subroutine TModGravityModel_SelfPointer
 
     ! TODO: this should be put somewhere more sensible, for now it's here
     !> Subroutine that sets the mgcamb_cache to zero

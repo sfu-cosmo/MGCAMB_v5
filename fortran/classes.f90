@@ -86,14 +86,6 @@
     procedure :: GetNonLinRatios_All => TNonLinearModel_GetNonLinRatios_All
     end type TNonLinearModel
 
-    !> MGCAMB MOD START
-    type, extends(TCambComponent) :: TDarkSector
-        ! actually defined in ModGravityInterface.f90
-        integer :: MG_flag = 0
-        logical :: MGDE_const = .true.
-    end type TDarkSector
-    !< MGCAMB MOD END
-
     type, extends(TCambComponent) :: TInitialPower
     contains
     procedure :: ScalarPower => TInitialPower_ScalarPower

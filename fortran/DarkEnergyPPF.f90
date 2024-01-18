@@ -53,23 +53,30 @@
     subroutine TDarkEnergyPPF_Init(this, State)
     use classes
 	use MGCAMB
+    use results, only: CAMBdata
+
     class(TDarkEnergyPPF), intent(inout) :: this
     class(TCAMBdata), intent(in), target :: State
 
     call this%TDarkEnergyEqnOfState%Init(State)
-	if(this%MG_flag==0) then
-        if (this%is_cosmological_constant) then
-            this%num_perturb_equations = 0
-        else
-            this%num_perturb_equations = 1
-        end if
-	else
-		if (this%MGDE_const) then
-			this%num_perturb_equations = 0
-		else
-			this%num_perturb_equations = 1
-		end if
-	end if
+
+    select type (S => State)
+        class is (CAMBdata)
+            if(S%CP%ModGravity%MG_flag==0) then
+                if (this%is_cosmological_constant) then
+                    this%num_perturb_equations = 0
+                else
+                    this%num_perturb_equations = 1
+                end if
+            else
+                ! TODO, NOTE TO SELF: this is a repetition, remove it later
+                if (S%CP%ModGravity%MGDE_const) then
+                    this%num_perturb_equations = 0
+                else
+                    this%num_perturb_equations = 1
+                end if
+            end if
+    end select
 
     end subroutine TDarkEnergyPPF_Init
 

@@ -151,7 +151,9 @@
         class(TInitialPower), allocatable :: InitPower
         class(TRecombinationModel), allocatable :: Recomb
         class(TReionizationModel), allocatable :: Reion
+        !> MGCAMB MOD START
         class(TModGravityModel), allocatable :: ModGravity
+        !< MGCAMB MOD END
         class(TDarkEnergyModel), allocatable :: DarkEnergy
         class(TNonLinearModel), allocatable :: NonLinearModel
         type(AccuracyParams)     :: Accuracy

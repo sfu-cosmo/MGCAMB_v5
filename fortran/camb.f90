@@ -269,7 +269,7 @@
     integer i, status
     real(dl) nmassive
     character(LEN=*), intent(inout) :: ErrMsg
-    character(LEN=:), allocatable :: NumStr, S, DarkEneryModel, RecombinationModel
+    character(LEN=:), allocatable :: NumStr, S, ModGravityModel, DarkEneryModel, RecombinationModel
     logical :: DoCounts
     !> MGCAMB MOD START
     character(len=:), allocatable :: outroot
@@ -416,26 +416,43 @@
         end if
     endif
 
+    !> MGCAMB MOD START
+    ! Read modified growth parameters
+    ModGravityModel = UpperCase(Ini%Read_String_Default('modgravity_model', 'mugamma_par'))
+    if (allocated(P%ModGravity)) deallocate(P%ModGravity)
+    if (ModGravityModel == 'MUGAMMA_PAR') then
+        ! TODO check MG_flag is set correctly by doing this
+        allocate(TMuGammaParameterization::P%ModGravity)
+    ! TODO: the other parameterizations will have to be similarly allocated here
+    else
+        ErrMsg = 'Unknown modified growth model: '//trim(ModGravityModel)
+        return
+    end if
+    call P%ModGravity%ReadParams(Ini)
+    !< MGCAMB MOD END
+
     !  Read initial parameters.
     DarkEneryModel = UpperCase(Ini%Read_String_Default('dark_energy_model', 'fluid'))
     if (allocated(P%DarkEnergy)) deallocate(P%DarkEnergy)
-	> MGCAMB MOD START
-    if ((DarkEneryModel == 'FLUID' .and. MG_flag == 0) .or.  &
-		(MG_flag /= 0 .and. (DE_model == 0 .or. DE_model == 1 .or. DE_model == 3))) then
+    if (DarkEneryModel == 'FLUID') then
         allocate (TDarkEnergyFluid::P%DarkEnergy)
-    else if ((DarkEneryModel == 'PPF' .and. MG_flag == 0) .or. &
-		(MG_flag /= 0 .and. DE_model == 2)) then
-       allocate (TDarkEnergyPPF::P%DarkEnergy)
-	< MGCAMB MOD END
+        ! at this stage it can be DE_model=0,1,2
+        ! TODO: ask Xavier and check what DE_model should be set to here
+    else if (DarkEneryModel == 'PPF') then
+        allocate (TDarkEnergyPPF::P%DarkEnergy)
     else if (DarkEneryModel == 'AXIONEFFECTIVEFLUID') then
-       allocate (TAxionEffectiveFluid::P%DarkEnergy)
+        allocate (TAxionEffectiveFluid::P%DarkEnergy)
     else if (DarkEneryModel == 'EARLYQUINTESSENCE') then
-       allocate (TEarlyQuintessence::P%DarkEnergy)
+        allocate (TEarlyQuintessence::P%DarkEnergy)
+    ! TODO: add option for DE reconstruction here
     else
        ErrMsg = 'Unknown dark energy model: '//trim(DarkEneryModel)
        return
     end if
     call P%DarkEnergy%ReadParams(Ini)
+
+    ! TODO: place a warning here if the user has asked for a model that has perturbations
+    ! from both DE and MG
 
     P%h0 = Ini%Read_Double('hubble')
 
@@ -450,6 +467,7 @@
     end if
 
     !> MGCAMB MOD START
+    ! TODO: add default here
     outroot = Ini%Read_String('output_root')
 
     !mgcamb_par_cache%omegab = P%ombh2/(P%H0/100)**2
@@ -457,10 +475,6 @@
     !mgcamb_par_cache%h0     = P%H0
     !mgcamb_par_cache%h0_Mpc = P%H0 * (1.d3/c)
     !mgcamb_par_cache%output_root = outroot
-    !< MGCAMB MOD END
-
-    !> MGCAMB MOD START: reading models and params
-    !call MGCAMB_read_model_params( mgcamb_par_cache, Ini )
     !< MGCAMB MOD END
 
 

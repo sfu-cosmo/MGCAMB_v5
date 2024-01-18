@@ -36,7 +36,7 @@ SOURCEFILES      =  constants config classes MathUtils subroutines DarkAge21cm \
 
 TESTFILES      =  constants config classes MathUtils subroutines DarkAge21cm \
         DarkEnergyInterface SourceWindows massive_neutrinos ModGravityInterface model mgcamb results bessels \
-        $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations \
+        $(RECOMBINATION_FILES) $(DARKENERGY_FILES) equations_MG \
         $(REIONIZATION_FILES) $(POWERSPECTRUM_FILES) $(NONLINEAR_FILES) \
         lensing $(BISPECTRUM) cmbmain camb  unit_tester
 
