@@ -2656,7 +2656,7 @@
     !  CDM equation of motion
     if ( tempmodel == 4 ) then 
 
-        if(CDM_flag == 1) then !CDM QSA
+        if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
 
             clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl * State%CP%ModGravity%grhoc_t * MG_alpha*adotoa) &
                     /(k2+(m**2._dl)*a**2._dl)
@@ -2773,7 +2773,7 @@
 
     if ( tempmodel == 4 ) then
 
-        if(CDM_flag == 1) then  ! CDM QSA
+        if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
           vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl*State%CP%ModGravity%grhoc_t*MG_alpha*adotoa)&
                             /(k2+(m**2._dl)*a**2._dl)
 
@@ -3312,7 +3312,7 @@
         end if
 
        !> MGCAMB MOD START
-        if ( DebugMGCAMB ) then
+        if ( State%CP%ModGravity%DebugMGCAMB ) then
 
             !write(*,*) 'writing cache at a,k:', a,k
             ! NOTE TO SELF: this whole stuff can go

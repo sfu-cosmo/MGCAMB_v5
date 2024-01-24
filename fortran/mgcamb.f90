@@ -198,7 +198,7 @@ module MGCAMB
     subroutine TMuGammaParameterization_Computesigma( this, a )
 
         class(TMuGammaParameterization) :: this
-        real(dl) :: a   !< scale factor
+        real(dl), intent(in) :: a   !< scale factor
         
         ! first calculate MG_alpha 
         this%MG_alpha = ( this%etak/ this%k + this%mu * ( this%gamma * this%rhoDelta + &
@@ -214,7 +214,7 @@ module MGCAMB
     subroutine TMuGammaParameterization_Computez( this, a ) 
 
         class(TMuGammaParameterization) :: this
-        real(dl) :: a   !< scale factor
+        real(dl), intent(in) :: a   !< scale factor
 
         !> other parameters
         real(dl) :: fmu
@@ -288,7 +288,7 @@ module MGCAMB
     subroutine TMuGammaParameterization_ComputeISW( this, a )
 
         class(TMuGammaParameterization) :: this
-        real(dl) :: a   !< scale factor
+        real(dl), intent(in) :: a   !< scale factor
 
         !local variables
         real(dl) :: term0
