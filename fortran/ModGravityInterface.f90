@@ -101,13 +101,13 @@ module ModGravityInterface
         procedure(ComputesigmaInterface), deferred :: Computesigma
         procedure(ComputezInterface), deferred :: Computez
         procedure(ComputeISWInterface), deferred :: ComputeISW
-        procedure(PrintAttributesInterface), deferred :: PrintAttributes
         ! TODO defer ReadParams as well
 
         ! other subroutines
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
+        procedure :: PrintAttributes => TModGravityModel_PrintAttributes
         procedure :: ResetCache => TModGravityModel_ResetCache
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
@@ -145,11 +145,6 @@ module ModGravityInterface
             real(dl), intent(in) :: a
         end subroutine ComputeISWInterface
 
-        ! for debugging
-        subroutine PrintAttributesInterface(this)
-            import :: TModGravityModel
-            class(TModGravityModel) :: this
-        end subroutine PrintAttributesInterface
     end interface
 
 
@@ -173,6 +168,83 @@ module ModGravityInterface
     ! call c_f_pointer(cptr, PType)
     ! P => PType
     ! end subroutine TModGravityModel_SelfPointer
+
+    ! useful for debugging
+    subroutine TModGravityModel_PrintAttributes(this)
+
+        class(TModGravityModel), intent(in) :: this
+
+        write (*,*) 'DebugMGCAMB = ', this%DebugMGCAMB
+        write (*,*) 'debug_root = ', this%debug_root
+
+        write (*,*) 'GRtrans = ', this%GRtrans
+        write (*,*) 'MGDE_pert = ', this%MGDE_pert
+        write (*,*) 'MGDE_const = ', this%MGDE_const
+        write (*,*) 'MG_flag = ', this%MG_flag
+        write (*,*) 'CDM_flag = ', this%CDM_flag
+
+        write (*,*) 'adotoa = ', this%adotoa
+        write (*,*) 'Hdot = ', this%Hdot
+        write (*,*) 'grho = ', this%grho
+        write (*,*) 'gpres = ', this%gpres
+        write (*,*) 'grhob_t = ', this%grhob_t    
+        write (*,*) 'grhoc_t = ', this%grhoc_t
+        write (*,*) 'grhog_t = ', this%grhog_t 
+        write (*,*) 'grhor_t = ', this%grhor_t
+        write (*,*) 'grhov_t = ', this%grhov_t  
+        write (*,*) 'gpresv_t = ', this%gpresv_t 
+        write (*,*) 'grhonu_t = ', this%grhonu_t
+        write (*,*) 'gpresnu_t = ', this%gpresnu_t
+    
+        write (*,*) 'k = ', this%k
+        write (*,*) 'k2 = ', this%k2
+        write (*,*) 'dgrho = ', this%dgrho
+        write (*,*) 'dgrhoc = ', this%dgrhoc
+        write (*,*) 'dgq = ', this%dgq
+        write (*,*) 'dgqc = ', this%dgqc 
+        write (*,*) 'pidot_sum = ', this%pidot_sum
+        write (*,*) 'dgpi_w_sum = ', this%dgpi_w_sum
+        write (*,*) 'dgpi = ', this%dgpi   
+        write (*,*) 'dgpi_diff = ', this%dgpi_diff
+        write (*,*) 'dgpidot = ', this%dgpidot
+        write (*,*) 'rhoDelta = ', this%rhoDelta  
+        write (*,*) 'rhoDeltadot = ', this%rhoDeltadot  
+        write (*,*) 'rhoDeltac = ', this%rhoDeltac
+        write (*,*) 'rhoDeltacdot = ', this%rhoDeltacdot 
+    
+        write (*,*) 'mu = ', this%mu
+        write (*,*) 'mudot = ', this%mudot
+        write (*,*) 'gamma = ', this%gamma
+        write (*,*) 'gammadot = ', this%gammadot
+        write (*,*) 'q = ', this%q
+        write (*,*) 'qdot = ', this%qdot
+        write (*,*) 'r = ', this%r
+        write (*,*) 'rdot = ', this%rdot
+        write (*,*) 'BigSigma = ', this%BigSigma
+        write (*,*) 'BigSigmadot = ', this%BigSigmadot
+        write (*,*) 'C_phi = ', this%C_phi
+        write (*,*) 'C_phidot = ', this%C_phidot
+    
+        write (*,*) 'z = ', this%z
+        write (*,*) 'sigma = ', this%sigma
+        write (*,*) 'sigmadot = ', this%sigmadot
+        write (*,*) 'etak = ', this%etak
+        write (*,*) 'etadot = ', this%etadot
+    
+        write (*,*) 'MG_alpha = ', this%MG_alpha
+        write (*,*) 'MG_alphadot = ', this%MG_alphadot
+        write (*,*) 'MG_phi = ', this%MG_phi
+        write (*,*) 'MG_phidot = ', this%MG_phidot
+        write (*,*) 'MG_psi = ', this%MG_psi
+        write (*,*) 'MG_psidot = ', this%MG_psidot
+        write (*,*) 'MG_ISW = ', this%MG_ISW
+        write (*,*) 'MG_lensing = ', this%MG_lensing
+        write (*,*) 'source1 = ', this%source1
+        write (*,*) 'source3 = ', this%source3
+
+    end subroutine TModGravityModel_PrintAttributes
+
+    
 
     ! TODO: this should be put somewhere more sensible, for now it's here
     !> Subroutine that sets the mgcamb_cache to zero

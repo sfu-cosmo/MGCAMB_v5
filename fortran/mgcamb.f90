@@ -23,6 +23,12 @@ module MGCAMB
 
         contains
 
+        ! deferred procedures
+        procedure :: Computesigma => TMuGammaParameterization_Computesigma
+        procedure :: ComputeMGFunctions => TMuGammaParameterization_ComputeMGFunctions
+        procedure :: Computez => TMuGammaParameterization_Computez
+        procedure :: ComputeISW => TMuGammaParameterization_ComputeISW
+
         procedure :: ReadParams => TMuGammaParameterization_ReadParams
         procedure, nopass :: PythonClass => TMuGammaParameterization_PythonClass
         procedure, nopass :: SelfPointer => TMuGammaParameterization_SelfPointer
@@ -33,11 +39,8 @@ module MGCAMB
         procedure :: ComputeGammadot => TMuGammaParameterization_ComputeGammadot
         procedure :: ComputeBigSigma => TMuGammaParameterization_ComputeBigSigma
         procedure :: ComputeBigSigmadot => TMuGammaParameterization_ComputeBigSigmadot
-        procedure :: Computesigma => TMuGammaParameterization_Computesigma
-        procedure :: ComputeMGFunctions => TMuGammaParameterization_ComputeMGFunctions
-        procedure :: Computez => TMuGammaParameterization_Computez
-        procedure :: ComputeISW => TMuGammaParameterization_ComputeISW
         procedure :: ComputeLensing => TMuGammaParameterization_ComputeLensing
+        procedure :: PrintAttributes => TMuGammaParameterization_PrintAttributes
 
     end type TMuGammaParameterization
 
@@ -322,6 +325,22 @@ module MGCAMB
         this%MG_lensing = this%MG_phi + this%MG_psi
 
     end subroutine TMuGammaParameterization_ComputeLensing
+
+    !---------------------------------------------------------------------------
+    !> this subroutine prints the class attributes - useful for debugging
+    subroutine TMuGammaParameterization_PrintAttributes( this )
+
+        class(TMuGammaParameterization), intent(in) :: this 
+
+        call TModGravityModel_PrintAttributes(this)
+
+        write (*,*) 'B1 = ', this%B1
+        write (*,*) 'B2 = ', this%B2
+        write (*,*) 'lambda1_2 = ', this%lambda1_2
+        write (*,*) 'lambda2_2 = ', this%lambda2_2
+        write (*,*) 'ss = ', this%ss
+
+    end subroutine TMuGammaParameterization_PrintAttributes
 
 
 

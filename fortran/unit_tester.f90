@@ -55,7 +55,7 @@ program tester
 
     call CAMB_GetResults(res, CPcz)
 
-
+    call CPcz%ModGravity%PrintAttributes()
     
 end program Tester
     
