@@ -14,6 +14,7 @@ module MGCAMB
 
     ! ============ mu, gamma parameterisation ============
     type, extends(TModGravityModel) :: TMuGammaParameterization
+
         real(dl):: B1 = 1.333d0
         real(dl):: B2 = 0.5
         real(dl):: lambda1_2  = 1000
@@ -65,6 +66,7 @@ module MGCAMB
 
     subroutine TMuGammaParameterization_SelfPointer(cptr,P)
         use iso_c_binding
+        use classes, only: TPythonInterfacedClass
         Type(c_ptr) :: cptr
         Type (TMuGammaParameterization), pointer :: PType
         class (TPythonInterfacedClass), pointer :: P
@@ -181,7 +183,7 @@ module MGCAMB
     subroutine TMuGammaParameterization_ComputeMGFunctions( this, a )
 
         class(TMuGammaParameterization) :: this
-        real(dl) :: a   !< scale factor
+        real(dl), intent(in) :: a   !< scale factor
     
         call this%ComputeMu( a )
         call this%ComputeMuDot( a )

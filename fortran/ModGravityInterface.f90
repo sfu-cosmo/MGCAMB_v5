@@ -1,5 +1,5 @@
 module ModGravityInterface
-    use classes
+    use classes, only : TCambComponent, TCAMBdata
     use precision
     !use IniObjects
     implicit none
@@ -90,9 +90,9 @@ module ModGravityInterface
         real(dl) :: source1
         real(dl) :: source3
 
-        procedure(ComputeMGFunctionsInterface), pointer :: ComputeMGFunctions
-
         contains
+
+        procedure(ComputeMGFunctionsInterface), deferred :: ComputeMGFunctions
 
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
@@ -107,9 +107,9 @@ module ModGravityInterface
 
     abstract interface
         subroutine ComputeMGFunctionsInterface(this, a)
-            !use precision
-            import
-            class(TModGravityModel), intent(in) :: this
+            use precision
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
             real(dl), intent(in) :: a
         end subroutine ComputeMGFunctionsInterface
     end interface
