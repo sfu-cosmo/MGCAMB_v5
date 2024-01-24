@@ -8,7 +8,11 @@ module ModGravityInterface
 
     type, abstract, extends(TCambComponent) :: TModGravityModel
 
+        ! MGCAMB debug flag.This will turn on printing of many things to aid debugging the code.
+        logical :: DebugMGCAMB = .false.
         character(len=30) :: debug_root = "debug_"
+
+        ! when MG is turned on - TODO: CHECK WITH XAVIER!
         real(dl):: GRtrans = 0.001
 
         ! Whether or not we want additional DE perturbations on top of what MGCAMB already
@@ -92,8 +96,15 @@ module ModGravityInterface
 
         contains
 
+        ! subroutines that are really defined within the subtypes
         procedure(ComputeMGFunctionsInterface), deferred :: ComputeMGFunctions
+        procedure(ComputesigmaInterface), deferred :: Computesigma
+        procedure(ComputezInterface), deferred :: Computez
+        procedure(ComputeISWInterface), deferred :: ComputeISW
+        procedure(PrintAttributesInterface), deferred :: PrintAttributes
+        ! TODO defer ReadParams as well
 
+        ! other subroutines
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
@@ -104,14 +115,41 @@ module ModGravityInterface
 
     end type TModGravityModel
 
-
+    ! these functions are actually defined within the subtypes
     abstract interface
         subroutine ComputeMGFunctionsInterface(this, a)
-            use precision
+            use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
         end subroutine ComputeMGFunctionsInterface
+
+        subroutine ComputesigmaInterface(this, a)
+            use Precision
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
+            real(dl), intent(in) :: a
+        end subroutine ComputesigmaInterface
+
+        subroutine ComputezInterface(this, a)
+            use Precision
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
+            real(dl), intent(in) :: a
+        end subroutine ComputezInterface
+
+        subroutine ComputeISWInterface(this, a)
+            use Precision
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
+            real(dl), intent(in) :: a
+        end subroutine ComputeISWInterface
+
+        ! for debugging
+        subroutine PrintAttributesInterface(this)
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
+        end subroutine PrintAttributesInterface
     end interface
 
 
