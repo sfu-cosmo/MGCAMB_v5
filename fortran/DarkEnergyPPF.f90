@@ -60,23 +60,14 @@
 
     call this%TDarkEnergyEqnOfState%Init(State)
 
-    select type (S => State)
-        class is (CAMBdata)
-            if(S%CP%ModGravity%MG_flag==0) then
-                if (this%is_cosmological_constant) then
-                    this%num_perturb_equations = 0
-                else
-                    this%num_perturb_equations = 1
-                end if
-            else
-                ! TODO, NOTE TO SELF: this is a repetition, remove it later
-                if (S%CP%ModGravity%MGDE_const) then
-                    this%num_perturb_equations = 0
-                else
-                    this%num_perturb_equations = 1
-                end if
-            end if
-    end select
+    if (this%is_cosmological_constant) then
+        this%num_perturb_equations = 0
+    else
+        this%num_perturb_equations = 1
+    end if
+    
+    if (this%cs2_lam /= 1._dl) &
+        call GlobalError('DarkEnergyPPF does not support varying sound speed',error_unsupported_params)
 
     end subroutine TDarkEnergyPPF_Init
 
