@@ -272,6 +272,7 @@
     character(LEN=:), allocatable :: NumStr, S, ModGravityModel, DarkEneryModel, RecombinationModel
     logical :: DoCounts
     !> MGCAMB MOD START
+    ! TODO: this is probably not needed
     character(len=:), allocatable :: outroot
     !< MGCAMB MOD END
     CAMB_ReadParams = .false.
@@ -438,6 +439,7 @@
         allocate (TDarkEnergyFluid::P%DarkEnergy)
         ! at this stage it can be DE_model=0,1,2
         ! TODO: ask Xavier and check what DE_model should be set to here
+        ! if you want to throw an error if you're asking for both DE and MG, this is place it should be done
     else if (DarkEneryModel == 'PPF') then
         allocate (TDarkEnergyPPF::P%DarkEnergy)
     else if (DarkEneryModel == 'AXIONEFFECTIVEFLUID') then
@@ -467,14 +469,7 @@
     end if
 
     !> MGCAMB MOD START
-    ! TODO: add default here
     outroot = Ini%Read_String('output_root')
-
-    !mgcamb_par_cache%omegab = P%ombh2/(P%H0/100)**2
-    !mgcamb_par_cache%omegac = P%omch2/(P%H0/100)**2
-    !mgcamb_par_cache%h0     = P%H0
-    !mgcamb_par_cache%h0_Mpc = P%H0 * (1.d3/c)
-    !mgcamb_par_cache%output_root = outroot
     !< MGCAMB MOD END
 
 
