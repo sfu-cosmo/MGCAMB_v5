@@ -1,4 +1,5 @@
-    ! Equations module for background and ! To avoid circular module issues, some things are not part of module
+    ! Equations module for background and 
+    ! To avoid circular module issues, some things are not part of module
 
     ! Background evolution, return d tau/ d a, where tau is the conformal time
     function dtauda(this,a)

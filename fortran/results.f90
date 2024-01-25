@@ -310,6 +310,7 @@
     !Initialize background variables; does not yet calculate thermal history
     use constants
     !>MGCAMB MOD START
+    use ModGravityInterface
     use MGCAMB
     !> MGCAMB MOD END
     class(CAMBdata), target :: this
@@ -462,6 +463,7 @@
             - (this%grhornomass + this%grhog)/this%grhocrit
         this%grhov=this%grhocrit*this%Omega_de
 
+        ! TODO: put back reconstruction when you're done
         !!> MGCAMB MOD START
 		!mgcamb_par_cache%omegav = this%Omega_de
         
@@ -473,7 +475,7 @@
         ! end if
 
         ! if(P%ModGravity%MG_wrapped) then
-        !     call MGCAMB_read_in_MGparams(P)
+        !     call MGCAMB_read_in_MGparams(P) ! DS: not needed anymore
         ! end if 
         ! if (MG_flag == 1 .or. MG_flag == 5 .or. MG_flag == 6) then
         !     call reconstruction_arr
@@ -594,6 +596,11 @@
         write(*,'("Om_K                 = ",f9.6)') P%omk
         write(*,'("Om_m (inc Om_u)      = ",f9.6)') (P%ombh2+P%omch2+P%omnuh2)/h2
         write(*,'("100 theta (CosmoMC)  = ",f9.6)') 100*this%CosmomcTheta()
+
+        !< MGCAMB MOD START
+        call this%CP%ModGravity%PrintAttributes()
+        !> MGCAMB MOD END
+
         if (this%CP%Num_Nu_Massive > 0) then
             write(*,'("N_eff (total)        = ",f9.6)') nu_massless_degeneracy + &
                 sum(this%CP%Nu_mass_degeneracies(1:this%CP%Nu_mass_eigenstates))

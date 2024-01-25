@@ -118,7 +118,6 @@ module ModGravityInterface
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
         procedure :: MGCAMB_dump_cache
-        procedure :: print_MGCAMB_header
 
     end type TModGravityModel
 

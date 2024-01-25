@@ -141,8 +141,6 @@
         !Workaround for ifort, gives class pointer to avoid creating temps and huge slow down
         class(TThermoData), pointer :: ThermoData => null()
 
-        ! DS note to self: in equations_MG this is real(dl) and it seems to be required by cmbmain
-        ! for type consistency, but was just real in original equations file - reasons unknown
         real(dl), pointer :: OutputTransfer(:) => null()
         real(dl), pointer :: OutputSources(:) => null()
         real(dl), pointer :: CustomSources(:) => null()
@@ -2126,7 +2124,6 @@
     implicit none
     type(EvolutionVars) EV
     real(dl), intent(in) :: tau
-    ! DS note to self: see earlier comment on types
     real(dl), target :: Arr(:)
     real(dl) y(EV%nvar),yprime(EV%nvar)
 
