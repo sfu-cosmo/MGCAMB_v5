@@ -28,6 +28,7 @@ module MGCAMB
         procedure :: ComputeMGFunctions => TMuGammaParameterization_ComputeMGFunctions
         procedure :: Computez => TMuGammaParameterization_Computez
         procedure :: ComputeISW => TMuGammaParameterization_ComputeISW
+        procedure :: ComputeLensing => TMuGammaParameterization_ComputeLensing
 
         procedure :: ReadParams => TMuGammaParameterization_ReadParams
         procedure, nopass :: PythonClass => TMuGammaParameterization_PythonClass
@@ -39,7 +40,6 @@ module MGCAMB
         procedure :: ComputeGammadot => TMuGammaParameterization_ComputeGammadot
         procedure :: ComputeBigSigma => TMuGammaParameterization_ComputeBigSigma
         procedure :: ComputeBigSigmadot => TMuGammaParameterization_ComputeBigSigmadot
-        procedure :: ComputeLensing => TMuGammaParameterization_ComputeLensing
         procedure :: PrintAttributes => TMuGammaParameterization_PrintAttributes
 
     end type TMuGammaParameterization
@@ -48,12 +48,16 @@ module MGCAMB
     contains
 
 
+    ! CACCA: devo finire di settare read params in both TmodGrav Model and here
+    ! then set MGFLAG within the child class, make sure init works
+
     subroutine TMuGammaParameterization_ReadParams( this, Ini )
         use IniObjects
         class(TMuGammaParameterization) :: this
         class(TIniFile), intent(in) :: Ini
 
-        this%debug_root = Ini%Read_String_Default( 'output_root', 'debug_' )
+        call TModGravityModel_ReadParams( this, Ini )
+
         this%B1 = Ini%Read_Double( 'B1', 1.333d0 )
         this%B2 = Ini%Read_Double( 'B2', 0.5d0 )
         this%lambda1_2 = Ini%Read_Double( 'lambda1_2', 1000.d0 )
@@ -77,9 +81,9 @@ module MGCAMB
         P => PType
     end subroutine TMuGammaParameterization_SelfPointer
 
-    subroutine TMuGammaParameterization_Init(this, State)
+    subroutine TMuGammaParameterization_Init(this)!, State)
         class(TMuGammaParameterization) :: this
-        class(TCAMBdata), intent(in), target :: State
+        !class(TCAMBdata), intent(in), target :: State
 
         ! to keep track of models in different parts of the code
         this%MG_flag = 1
@@ -320,7 +324,7 @@ module MGCAMB
     subroutine TMuGammaParameterization_ComputeLensing( this, a )
 
         class(TMuGammaParameterization) :: this
-        real(dl) :: a   !< scale factor
+        real(dl), intent(in) :: a   !< scale factor
 
         this%MG_lensing = this%MG_phi + this%MG_psi
 
@@ -341,32 +345,6 @@ module MGCAMB
         write (*,*) 'ss = ', this%ss
 
     end subroutine TMuGammaParameterization_PrintAttributes
-
-
-
-! ---------------------------------------------------------------------------------------------
-    !> Subroutine that prints to screen the MGCAMB header.
-    subroutine print_MGCAMB_header
-
-        implicit none
-
-        ! print the header:
-        write(*,'(a)') "***************************************************************"
-        write(*,'(a)') "     __  _________  ________   __  ______  "
-        write(*,'(a)') "    /  \/  / ____/ / ___/ _ | /  |/  / _ ) "
-        write(*,'(a)') "   / /\_/ / /_,-, / /__/ __ |/ /|_/ / _  | "
-        write(*,'(a)') "  /_/  /_/_____/  \___/_/ |_/_/  /_/____/  "
-        write(*,'(a)') "  "
-        write(*,'(a)') "        Modified Growth with CAMB "
-        write(*,'(a)') "  "
-        write(*,'(a)') "***************************************************************"
-
-    end subroutine print_MGCAMB_header
-
-
-
-
-
 
 end module MGCAMB
 

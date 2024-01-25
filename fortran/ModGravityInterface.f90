@@ -12,7 +12,7 @@ module ModGravityInterface
         logical :: DebugMGCAMB = .false.
         character(len=30) :: debug_root = "debug_"
 
-        ! when MG is turned on - TODO: CHECK WITH XAVIER!
+        ! Choose at which time to turn on MG
         real(dl):: GRtrans = 0.001
 
         ! Whether or not we want additional DE perturbations on top of what MGCAMB already
@@ -27,6 +27,9 @@ module ModGravityInterface
         ! TODO: remove this flag from other places (e.g. dark sector mugamma - or set correctly)
         integer :: MG_flag = 0
         ! TODO: see if this is really needed
+        !###### Part 2.4 - CDM-only coupling
+        !#CDM_flag = 1: QSA models
+        !#need to set other QSA models parameters as well
         integer :: CDM_flag = 0
 
         ! 1. Background quantities
@@ -101,17 +104,21 @@ module ModGravityInterface
         procedure(ComputesigmaInterface), deferred :: Computesigma
         procedure(ComputezInterface), deferred :: Computez
         procedure(ComputeISWInterface), deferred :: ComputeISW
-        ! TODO defer ReadParams as well
+        procedure(ComputeLensingInterface), deferred :: ComputeLensing
 
         ! other subroutines
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
+        procedure :: ReadParams => TModGravityModel_ReadParams
+        ! TODO: after the code works, see if you need to keep this (although it's useful for debugging)
         procedure :: PrintAttributes => TModGravityModel_PrintAttributes
+        ! TODO: do we need these?
         procedure :: ResetCache => TModGravityModel_ResetCache
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
         procedure :: MGCAMB_dump_cache
+        procedure :: print_MGCAMB_header
 
     end type TModGravityModel
 
@@ -145,14 +152,21 @@ module ModGravityInterface
             real(dl), intent(in) :: a
         end subroutine ComputeISWInterface
 
+        subroutine ComputeLensingInterface(this, a)
+            use Precision
+            import :: TModGravityModel
+            class(TModGravityModel) :: this
+            real(dl), intent(in) :: a
+        end subroutine ComputeLensingInterface
+
     end interface
 
 
     contains
 
-    subroutine TModGravityModel_Init(this, State)
+    subroutine TModGravityModel_Init(this)!, State)
         class(TModGravityModel) :: this
-        class(TCAMBdata), intent(in), target :: State
+        !class(TCAMBdata), intent(in), target :: State
     end subroutine TModGravityModel_Init
 
     ! function TModGravityModel_PythonClass()
@@ -168,6 +182,28 @@ module ModGravityInterface
     ! call c_f_pointer(cptr, PType)
     ! P => PType
     ! end subroutine TModGravityModel_SelfPointer
+
+    subroutine TModGravityModel_ReadParams( this, Ini )
+
+        use IniObjects
+        class(TModGravityModel) :: this
+        class(TIniFile), intent(in) :: Ini
+
+        this%DebugMGCAMB = Ini%Read_Logical( 'DebugMGCAMB', .false. )
+        this%debug_root = Ini%Read_String_Default( 'output_root', 'debug_' )
+        
+        this%GRtrans = Ini%Read_Double( 'GRtrans', 0.001d0 )
+
+        ! TODO: ultimately this flag will only be set internally in the Init
+        ! of each child class
+        this%MG_flag = Ini%Read_Int( 'MG_flag', 1 )
+        this%MGDE_pert = Ini%Read_Logical( 'MGDE_pert', .false. )
+        this%CDM_flag = Ini%Read_Int( 'CDM_flag', 1 )
+        
+    end subroutine TModGravityModel_ReadParams
+
+
+
 
     ! useful for debugging
     subroutine TModGravityModel_PrintAttributes(this)
@@ -244,7 +280,7 @@ module ModGravityInterface
 
     end subroutine TModGravityModel_PrintAttributes
 
-    
+
 
     ! TODO: this should be put somewhere more sensible, for now it's here
     !> Subroutine that sets the mgcamb_cache to zero
@@ -385,6 +421,27 @@ module ModGravityInterface
                                                     & this%gpresv_t
 
     end subroutine MGCAMB_dump_cache
+
+
+! ---------------------------------------------------------------------------------------------
+    !> Subroutine that prints to screen the MGCAMB header.
+    subroutine print_MGCAMB_header
+
+        implicit none
+
+        ! print the header:
+        write(*,'(a)') "***************************************************************"
+        write(*,'(a)') "     __  _________  ________   __  ______  "
+        write(*,'(a)') "    /  \/  / ____/ / ___/ _ | /  |/  / _ ) "
+        write(*,'(a)') "   / /\_/ / /_,-, / /__/ __ |/ /|_/ / _  | "
+        write(*,'(a)') "  /_/  /_/_____/  \___/_/ |_/_/  /_/____/  "
+        write(*,'(a)') "  "
+        write(*,'(a)') "        Modified Growth with CAMB "
+        write(*,'(a)') "  "
+        write(*,'(a)') "***************************************************************"
+
+    end subroutine print_MGCAMB_header
+
 
 
 end module ModGravityInterface

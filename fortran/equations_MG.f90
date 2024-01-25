@@ -3250,18 +3250,19 @@
                 if (tau>State%tau_maxvis .and. tau0-tau > 0.1_dl) then
                     !> MGCAMB MOD START
                     if ( tempmodel == 0 ) then
-                    EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
-                    !We include the lensing factor of two here
+                        EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
+                        !We include the lensing factor of two here
                     else
-                        ! TODO
-                        write (*,*) "in progress"
-                        !call MGCAMB_compute_lensing( a, mgcamb_par_cache, mgcamb_cache )
-                        !EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
-                        !                    & (f_K(tau0-State%tau_maxvis)*ang_dist)
+                        ! DEBUG!!! SPAM!!!
+                        write(*,*) "computing lensing at a = ", a
+                        call State%CP%ModGravity%ComputeLensing( a )
+                        EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
+                                            & (f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
                     end if 
                 end if
             end if
+
             if (State%num_redshiftwindows > 0) then
                 call output_window_sources(EV, EV%OutputSources, ay, ayprime, &
                     tau, a, adotoa, grho, gpres, &
