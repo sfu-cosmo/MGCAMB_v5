@@ -123,133 +123,139 @@
 
 
     subroutine cmbmain
-    !> MGCAMB MOD START
-    use MGCAMB
-    !< MGCAMB MOD END
-    integer q_ix
-    type(EvolutionVars) EV
-    Type(TTimer) :: Timer
-    real(dl) starttime
-    Type(ClTransferData), pointer :: ThisCT 
+        !> MGCAMB MOD START
+        use MGCAMB
+        !< MGCAMB MOD END
+        integer q_ix
+        type(EvolutionVars) EV
+        Type(TTimer) :: Timer
+        real(dl) starttime
+        Type(ClTransferData), pointer :: ThisCT 
 
-    logical :: DebugMGCAMB = .true.
+        WantLateTime =  CP%DoLensing .or. State%num_redshiftwindows > 0 .or. CP%CustomSources%num_custom_sources>0
 
-    WantLateTime =  CP%DoLensing .or. State%num_redshiftwindows > 0 .or. CP%CustomSources%num_custom_sources>0
+        if (CP%WantCls) then
+            if (CP%WantTensors .and. CP%WantScalars) call MpiStop('CMBMAIN cannot generate tensors and scalars')
+            !Use CAMB_GetResults instead
 
-    if (CP%WantCls) then
-        if (CP%WantTensors .and. CP%WantScalars) call MpiStop('CMBMAIN cannot generate tensors and scalars')
-        !Use CAMB_GetResults instead
-
-        if (CP%WantTensors) then
-            maximum_l = CP%Max_l_tensor
-            maximum_qeta = CP%Max_eta_k_tensor
-        else
-            maximum_l = CP%Max_l
-            maximum_qeta = CP%Max_eta_k
-        end if
-    end if
-
-    if (DebugMsgs .and. Feedbacklevel > 0) call Timer%Start(starttime)
-
-    call InitVars(State) !Most of single thread time spent here (in InitRECFAST)
-    if (global_error_flag/=0) return
-
-    if (DebugMsgs .and. Feedbacklevel > 0) then
-        call Timer%WriteTime('Timing for InitVars')
-        if (.not. State%flat) call WriteFormat('r = %f, scale = %f',State%curvature_radius, State%scale)
-    end if
-
-    if (.not. State%HasScalarTimeSources .and. (.not. State%OnlyTransfer .or. &
-        CP%NonLinear==NonLinear_Lens .or. CP%NonLinear==NonLinear_both)) &
-        call CP%InitPower%Init(CP)
-    if (global_error_flag/=0) return
-
-    !Calculation of the CMB and other sources.
-    if (CP%WantCls) then
-        if (CP%WantScalars) then
-            !Allow keeping time source for scalars, so e.g. different initial power spectra
-            ! and non-linear corrections can be applied later
-            if (.not. allocated(State%ScalarTimeSources)) allocate(State%ScalarTimeSources)
-            ThisSources => State%ScalarTimeSources
-        else
-            if (.not. allocated(TempSources)) allocate(TempSources)
-            ThisSources => TempSources
-        end if
-        call SetkValuesForSources
-    end if
-
-    if (CP%WantTransfer) call InitTransfer
-
-    !> MGCAMB MOD START
-    if ( DebugMGCAMB ) then
-        write(*,*) 'Opening cache files'
-        call CP%ModGravity%MGCAMB_open_cache_files()
-    end if
-    !< MGCAMB MOD END
-
-    !***note that !$ is the prefix for conditional multi-processor compilation***
-    !$ if (ThreadNum /=0) call OMP_SET_NUM_THREADS(ThreadNum)
-
-    if (CP%WantCls) then
-        if (DebugMsgs .and. Feedbacklevel > 0) call WriteFormat('Set %d source k values', &
-            ThisSources%Evolve_q%npoints)
-
-        if (CP%WantScalars) then
-            ThisCT => State%ClData%CTransScal
-        else if (CP%WantVectors) then
-            ThisCT => State%ClData%CTransVec
-        else
-            ThisCT => State%ClData%CTransTens
+            if (CP%WantTensors) then
+                maximum_l = CP%Max_l_tensor
+                maximum_qeta = CP%Max_eta_k_tensor
+            else
+                maximum_l = CP%Max_l
+                maximum_qeta = CP%Max_eta_k
+            end if
         end if
 
-        call GetSourceMem
+        if (DebugMsgs .and. Feedbacklevel > 0) call Timer%Start(starttime)
 
-        ThisCT%NumSources = ThisSources%SourceNum
-        call ThisCT%ls%Init(State,CP%Min_l, maximum_l)
+        call InitVars(State) !Most of single thread time spent here (in InitRECFAST)
+        if (global_error_flag/=0) return
 
-        !$OMP PARALLEL DO DEFAULT(SHARED),SCHEDULE(DYNAMIC), PRIVATE(EV, q_ix)
-        do q_ix= ThisSources%Evolve_q%npoints,1,-1
-            if (global_error_flag==0) call DoSourcek(EV,q_ix)
-        end do
-        !$OMP END PARALLEL DO
-
-
-        if (DebugMsgs .and. Feedbacklevel > 0) call Timer%WriteTime('Timing for source calculation')
-
-    endif !WantCls
-
-    !> MGCAMB MOD START
-    if ( DebugMGCAMB ) then
-        write(*,*) 'closing cache files'
-        call CP%ModGravity%MGCAMB_close_cache_files()
-    end if
-    !< MGCMAB MOD END
-
-    ! If transfer functions are requested, set remaining k values and output
-    if (CP%WantTransfer .and. global_error_flag==0) then
-        call TransferOut
-        if (DebugMsgs .and. Feedbacklevel > 0) call Timer%WriteTime('Timing for transfer k values')
-    end if
-
-    if (CP%WantTransfer .and. .not. State%OnlyTransfer .and. global_error_flag==0) &
-        call Transfer_Get_sigmas(State, State%MT)
-
-    !     if CMB calculations are requested, calculate the Cl by
-    !     integrating the sources over time and over k.
-
-    if (CP%WantCls .and. (.not. CP%WantScalars .or. .not. State%HasScalarTimeSources)) then
-        call TimeSourcesToCl(ThisCT)
-
-        if (CP%WantScalars) then
-            deallocate(State%ScalarTimeSources)
-        else
-            deallocate(TempSources)
+        if (DebugMsgs .and. Feedbacklevel > 0) then
+            call Timer%WriteTime('Timing for InitVars')
+            if (.not. State%flat) call WriteFormat('r = %f, scale = %f',State%curvature_radius, State%scale)
         end if
-        nullify(ThisSources)
-    end if
-    if (DebugMsgs .and. Feedbacklevel > 0) then
-        call Timer%WriteTime('Timing for whole of cmbmain', starttime)
-    end if
+
+        if (.not. State%HasScalarTimeSources .and. (.not. State%OnlyTransfer .or. &
+            CP%NonLinear==NonLinear_Lens .or. CP%NonLinear==NonLinear_both)) &
+            call CP%InitPower%Init(CP)
+        if (global_error_flag/=0) return
+
+        !> MGCAMB MOD START
+        ! init modified growth objects - sets e.g. MG_flag correctly
+        ! TODO: set DE flags if they need to
+        call CP%ModGravity%Init()
+        !< MGCAMB MOD END
+
+        !Calculation of the CMB and other sources.
+        if (CP%WantCls) then
+            if (CP%WantScalars) then
+                !Allow keeping time source for scalars, so e.g. different initial power spectra
+                ! and non-linear corrections can be applied later
+                if (.not. allocated(State%ScalarTimeSources)) allocate(State%ScalarTimeSources)
+                ThisSources => State%ScalarTimeSources
+            else
+                if (.not. allocated(TempSources)) allocate(TempSources)
+                ThisSources => TempSources
+            end if
+            call SetkValuesForSources
+        end if
+
+        if (CP%WantTransfer) call InitTransfer
+
+        !> MGCAMB MOD START
+        if ( CP%ModGravity%DebugMGCAMB ) then
+            write(*,*) 'Opening cache files'
+            call CP%ModGravity%MGCAMB_open_cache_files()
+        end if
+        !< MGCAMB MOD END
+
+        !***note that !$ is the prefix for conditional multi-processor compilation***
+        !$ if (ThreadNum /=0) call OMP_SET_NUM_THREADS(ThreadNum)
+
+        if (CP%WantCls) then
+            if (DebugMsgs .and. Feedbacklevel > 0) call WriteFormat('Set %d source k values', &
+                ThisSources%Evolve_q%npoints)
+
+            ! TODO: note to self, maybe the mgcamb cash etc, should be done here depending on feedback level
+
+            if (CP%WantScalars) then
+                ThisCT => State%ClData%CTransScal
+            else if (CP%WantVectors) then
+                ThisCT => State%ClData%CTransVec
+            else
+                ThisCT => State%ClData%CTransTens
+            end if
+
+            call GetSourceMem
+
+            ThisCT%NumSources = ThisSources%SourceNum
+            call ThisCT%ls%Init(State,CP%Min_l, maximum_l)
+
+            !$OMP PARALLEL DO DEFAULT(SHARED),SCHEDULE(DYNAMIC), PRIVATE(EV, q_ix)
+            do q_ix= ThisSources%Evolve_q%npoints,1,-1
+                if (global_error_flag==0) call DoSourcek(EV,q_ix)
+            end do
+            !$OMP END PARALLEL DO
+
+
+            if (DebugMsgs .and. Feedbacklevel > 0) call Timer%WriteTime('Timing for source calculation')
+
+        endif !WantCls
+
+        !> MGCAMB MOD START
+        if ( CP%ModGravity%DebugMGCAMB ) then
+            write(*,*) 'closing cache files'
+            call CP%ModGravity%MGCAMB_close_cache_files()
+        end if
+        !< MGCMAB MOD END
+
+        ! If transfer functions are requested, set remaining k values and output
+        if (CP%WantTransfer .and. global_error_flag==0) then
+            call TransferOut
+            if (DebugMsgs .and. Feedbacklevel > 0) call Timer%WriteTime('Timing for transfer k values')
+        end if
+
+        if (CP%WantTransfer .and. .not. State%OnlyTransfer .and. global_error_flag==0) &
+            call Transfer_Get_sigmas(State, State%MT)
+
+        !     if CMB calculations are requested, calculate the Cl by
+        !     integrating the sources over time and over k.
+
+        if (CP%WantCls .and. (.not. CP%WantScalars .or. .not. State%HasScalarTimeSources)) then
+            call TimeSourcesToCl(ThisCT)
+
+            if (CP%WantScalars) then
+                deallocate(State%ScalarTimeSources)
+            else
+                deallocate(TempSources)
+            end if
+            nullify(ThisSources)
+        end if
+        if (DebugMsgs .and. Feedbacklevel > 0) then
+            call Timer%WriteTime('Timing for whole of cmbmain', starttime)
+        end if
 
     end subroutine cmbmain
 

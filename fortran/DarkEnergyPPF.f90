@@ -52,8 +52,7 @@
 
     subroutine TDarkEnergyPPF_Init(this, State)
     use classes
-	use MGCAMB
-    use results, only: CAMBdata
+    use config
 
     class(TDarkEnergyPPF), intent(inout) :: this
     class(TCAMBdata), intent(in), target :: State
