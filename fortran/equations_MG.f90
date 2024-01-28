@@ -206,6 +206,7 @@
 
 
     subroutine GaugeInterface_ScalEv(EV,y,tau,tauend,tol1,ind,c,w)
+        ! that's the integrator!!!!
     type(EvolutionVars) EV
     real(dl) c(24),w(EV%nvar,9), y(EV%nvar), tol1, tau, tauend
     integer ind
@@ -3228,9 +3229,7 @@
                         !We include the lensing factor of two here
                     else
                         !!! DEBUG!!! SPAM!!!
-                        write (*,*) "a = ", a, "tau = ", tau, "tau0 = ", tau0
-                        write (*,*) State%tau_maxvis
-                        call State%CP%ModGravity%ComputeLensing( a )
+                       call State%CP%ModGravity%ComputeLensing( a )
                         EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
                                             & (f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
@@ -3276,10 +3275,25 @@
         end if
 
         ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
-    !    !> MGCAMB MOD START
-    !     if ( State%CP%ModGravity%DebugMGCAMB ) then
+       !> MGCAMB MOD START
+        if ( State%CP%ModGravity%DebugMGCAMB ) then
+            call State%CP%ModGravity%MGCAMB_dump_cache( a, k, etak, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
+        !< MGCAMB MOD END
+        end if
 
+        if (associated(EV%OutputSources)) then
+            State%CP%ModGravity%source1 = EV%OutputSources(1)
 
+            if (size(EV%OutputSources) > 2) then
+                State%CP%ModGravity%source3 = EV%OutputSources(3)
+            else
+                State%CP%ModGravity%source3 = 0._dl
+            end if
+        
+        else
+            State%CP%ModGravity%source1 = 0._dl
+            State%CP%ModGravity%source3 = 0._dl
+        end if
     end if
 
     end subroutine derivs
