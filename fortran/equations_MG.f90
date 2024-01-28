@@ -2313,12 +2313,12 @@
     !< MGCAMB MOD END
 
     ! TODO: tempmodel=4 is not yet restructured
-    ! ! NOTE to self: verify whether this should be kept in future
-    ! if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
-    !     dgq=grhob_t*vb + grhoc_t*vc
-    ! else
-    !     dgq=grhob_t*vb
-    ! end if
+    ! NOTE to self: verify whether this should be kept in future
+    if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
+        dgq = grhob_t*vb + grhoc_t*vc
+    else
+        dgq = grhob_t*vb
+    end if
 
     dgqc =grhoc_t*vc
 
@@ -2628,28 +2628,28 @@
      !< MGCAMB MOD END
 
     ! TODO: tempmodel=4 is yet to be restructured
-    ! !  CDM equation of motion
-    ! if ( tempmodel == 4 ) then 
+    !  CDM equation of motion
+    if ( tempmodel == 4 ) then 
 
-    !     if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
+        if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
 
-    !         clxcdot=-k*(z+vc) - beta * betadot*(dgrhoc - 3._dl * grhoc_t * State%CP%%ModGravity%MG_alpha * adotoa) &
-    !                 /(k2+(m**2._dl)*a**2._dl)
+            clxcdot=-k*(z+vc) - beta * betadot*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa) &
+                    /(k2+(m**2._dl)*a**2._dl)
 
-    !     end if 
+        end if 
 
-    ! else 
-    !      clxcdot = -k*z 
+    else 
+         clxcdot = -k*z 
 
-    ! end if
+    end if
 
     ayprime(ix_clxc)=clxcdot
 
     !  Baryon equation of motion.
-    clxbdot=-k*(z+vb)
-    ayprime(ix_clxb)=clxbdot
+    clxbdot = -k*(z+vb)
+    ayprime(ix_clxb) = clxbdot
     !  Photon equation of motion
-    clxgdot=-k*(4._dl/3._dl*z+qg)
+    clxgdot= - k*(4._dl/3._dl*z+qg)
 
     !Sources
     if (EV%Evolve_baryon_cs) then
@@ -2747,17 +2747,17 @@
     ayprime(ix_vb)=vbdot
 
     ! TODO: tempmodel=4 is not yet restructured
-    ! if ( tempmodel == 4 ) then
+    if ( tempmodel == 4 ) then
 
-    !     if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
-    !       vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa ) &
-    !                         /(k2+(m**2._dl)*a**2._dl)
+        if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
+          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa ) &
+                            /(k2+(m**2._dl)*a**2._dl)
 
-    !     end if 
+        end if 
 
-    ! else
-    !     vcdot = 0._dl 
-    ! end if 
+    else
+        vcdot = 0._dl 
+    end if 
 
     ayprime(ix_vc) = vcdot 
 
