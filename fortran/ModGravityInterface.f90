@@ -9,7 +9,7 @@ module ModGravityInterface
     type, abstract, extends(TCambComponent) :: TModGravityModel
 
         ! MGCAMB debug flag.This will turn on printing of many things to aid debugging the code.
-        logical :: DebugMGCAMB = .false.
+        logical :: DebugMGCAMB = .true.
         character(len=30) :: debug_root = "debug_"
 
         ! Choose at which time to turn on MG
@@ -305,32 +305,31 @@ module ModGravityInterface
 
     ! ---------------------------------------------------------------------------------------------
     !> Subroutine that prints the MGCAMB cache on a file
-    subroutine MGCAMB_dump_cache( this, a )
+    subroutine MGCAMB_dump_cache( this, a, k, etak, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
 
         class(TModGravityModel) :: this
-
         real(dl), intent(in) :: a   !< scale factor
+        real(dl), intent(in) :: k
+        real(dl), intent(in) :: etak, dgrho, dgq, dgpi
+        real(dl), intent(in) :: adotoa, pidot_sum, dgpi_w_sum
         character(*), parameter :: cache_output_format = 'e18.8'
 
-        ! ! 1. Write the sources
-        ! write(111,'(14'//cache_output_format//')') this%k, a, this%MG_ISW, this%MG_Lensing,&
-        !                                             & this%source1, this%source3
+        ! 1. Write the sources
+        write(111,'(14'//cache_output_format//')') k, a, this%MG_ISW, this%MG_Lensing, this%source1, this%source3
 
-        ! ! 2. Write the MG functions and the potentials
-        ! write(222,'(14'//cache_output_format//')') this%k, a, this%mu, this%gamma, this%q, this%r, &
-        !                                         & this%MG_phi, this%MG_psi, this%MG_phidot, this%MG_psidot
+        ! 2. Write the MG functions and the potentials
+        write(222,'(14'//cache_output_format//')') k, a, this%mu, this%gamma, this%q, this%r, &
+                                                & this%MG_phi, this%MG_psi, this%MG_phidot, this%MG_psidot
 
-        ! ! 3. Write the Einstein equations solutions
-        ! write(333,'(14'//cache_output_format//')') this%k, a, this%etak, this%z, this%sigma,&
-        !                                         & this%etadot,this%sigmadot
+        ! 3. Write the Einstein equations solutions
+        write(333,'(14'//cache_output_format//')') k, a, etak, this%z, this%sigma, this%etadot, this%sigmadot
 
-        ! ! 4. Write the Perturbations Solutions
-        ! write(444,'(14'//cache_output_format//')') this%k, a, this%dgrho, this%dgq, this%rhoDelta,&
-        !                                             & this%dgpi, this%pidot_sum, this%dgpi_w_sum
+        ! 4. Write the Perturbations Solutions
+        write(444,'(14'//cache_output_format//')') k, a, dgrho, dgq, this%rhoDelta,&
+                                                    & dgpi, pidot_sum, dgpi_w_sum
 
-        ! !5. Write the background
-        ! write(555,'(14'//cache_output_format//')') this%k, a, this%adotoa, this%Hdot, this%grhov_t,&
-        !                                             & this%gpresv_t
+        !5. Write the background
+        write(555,'(14'//cache_output_format//')') k, a, adotoa, this%Hdot, this%grhov_t,  this%gpresv_t
 
     end subroutine MGCAMB_dump_cache
 
