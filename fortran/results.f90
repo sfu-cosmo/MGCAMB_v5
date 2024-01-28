@@ -431,6 +431,14 @@
             this%Ksign =sign(1._dl,this%curv)
             this%curvature_radius=1._dl/sqrt(abs(this%curv))
         end if
+
+        ! TODO: check that this correctly checks that MG_flag /= 0 but universe is flat
+        if ( this%CP%ModGravity%MG_flag /= 0 .and. .not. this%flat ) then
+            call GlobalError( &
+            & "     MGCAMB works only for flat universe at the moment. Please check www.sfu.ca/~aha25/MGCAMB.html for updates.", &
+            & error_unsupported_params )
+        end if
+    
         !  grho gives the contribution to the expansion rate from: (g) photons,
         !  (r) one flavor of relativistic neutrino (2 degrees of freedom),
         !  (m) nonrelativistic matter (for Omega=1).  grho is actually

@@ -19,12 +19,7 @@ module ModGravityInterface
         ! provides in terms of the phenomenological functions
         logical :: MGDE_pert = .false.
 
-        ! TODO: whether or not dark energy is a cosmological constant
-        ! this looks like a copy of a variable that's already in camb, and should be removed
-        logical :: MGDE_const = .true.
-
         ! type of modified growth model
-        ! TODO: remove this flag from other places (e.g. dark sector mugamma - or set correctly)
         integer :: MG_flag = 0
         ! TODO: see if this is really needed
         !###### Part 2.4 - CDM-only coupling
@@ -33,31 +28,11 @@ module ModGravityInterface
         integer :: CDM_flag = 0
 
         ! 1. Background quantities
-        ! TODO: check whether they're a replica of camb variables
-        real(dl) :: adotoa
         real(dl) :: Hdot
-        real(dl) :: grho
-        real(dl) :: gpres 
-        real(dl) :: grhob_t    
-        real(dl) :: grhoc_t
-        real(dl) :: grhog_t 
-        real(dl) :: grhor_t
         real(dl) :: grhov_t  
         real(dl) :: gpresv_t 
-        real(dl) :: grhonu_t
-        real(dl) :: gpresnu_t
 
         ! 2. Perturbation quantities
-        real(dl) :: k
-        real(dl) :: k2
-        real(dl) :: dgrho
-        real(dl) :: dgrhoc
-        real(dl) :: dgq
-        real(dl) :: dgqc 
-        real(dl) :: pidot_sum
-        real(dl) :: dgpi_w_sum
-        real(dl) :: dgpi   
-        real(dl) :: dgpi_diff
         real(dl) :: dgpidot
         real(dl) :: rhoDelta  
         real(dl) :: rhoDeltadot  
@@ -79,23 +54,22 @@ module ModGravityInterface
         real(dl) :: C_phidot = 0.
 
         !> 4. Perturbations evolution variables
-        real(dl) :: z
-        real(dl) :: sigma
-        real(dl) :: sigmadot
-        real(dl) :: etak
-        real(dl) :: etadot
+        real(dl) :: z = 0. ! this z is not the redshift
+        real(dl) :: sigma = 0.
+        real(dl) :: sigmadot = 0.
+        real(dl) :: etadot = 0.
 
         !> 5. ISW and lensing realted quantities
-        real(dl) :: MG_alpha
-        real(dl) :: MG_alphadot
-        real(dl) :: MG_phi
-        real(dl) :: MG_phidot
-        real(dl) :: MG_psi
-        real(dl) :: MG_psidot
-        real(dl) :: MG_ISW
-        real(dl) :: MG_lensing
-        real(dl) :: source1
-        real(dl) :: source3
+        real(dl) :: MG_alpha = 0.
+        real(dl) :: MG_alphadot = 0.
+        real(dl) :: MG_phi = 0.
+        real(dl) :: MG_phidot = 0.
+        real(dl) :: MG_psi = 0.
+        real(dl) :: MG_psidot = 0.
+        real(dl) :: MG_ISW = 0.
+        real(dl) :: MG_lensing = 0.
+        real(dl) :: source1 = 0.
+        real(dl) :: source3 = 0.
 
         contains
 
@@ -123,32 +97,50 @@ module ModGravityInterface
 
     ! these functions are actually defined within the subtypes
     abstract interface
-        subroutine ComputeMGFunctionsInterface(this, a)
+        subroutine ComputeMGFunctionsInterface(this, a, k2, adotoa )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
+            real(dl), intent(in) :: k2
+            real(dl), intent(in) :: adotoa
         end subroutine ComputeMGFunctionsInterface
 
-        subroutine ComputesigmaInterface(this, a)
+        subroutine ComputesigmaInterface( this, a, k, k2, etak, adotoa, dgpi )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
+            real(dl), intent(in) :: k, k2 ! k^2
+            real(dl), intent(in) :: etak
+            real(dl), intent(in) :: adotoa
+            real(dl), intent(in) :: dgpi
         end subroutine ComputesigmaInterface
 
-        subroutine ComputezInterface(this, a)
+        subroutine ComputezInterface(this, a, k, k2, adotoa, &
+                                   & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t, &
+                                   & dgq, dgpi, dgpi_w_sum, pidot_sum  )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
+            real(dl), intent(in) :: k, k2
+            real(dl), intent(in) :: adotoa
+            real(dl), intent(in) :: grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t
+            real(dl), intent(in) :: dgq, dgpi, dgpi_w_sum, pidot_sum 
         end subroutine ComputezInterface
 
-        subroutine ComputeISWInterface(this, a)
+        subroutine ComputeISWInterface( this, a, adotoa, k, k2, & 
+                                      & grho, gpres, pidot_sum, dgq, dgpi, dgpi_diff )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
+            real(dl), intent(in) :: adotoa
+            real(dl), intent(in) :: k, k2 
+            real(dl), intent(in) :: grho, gpres
+            real(dl), intent(in) :: pidot_sum
+            real(dl), intent(in) :: dgq, dgpi, dgpi_diff
         end subroutine ComputeISWInterface
 
         subroutine ComputeLensingInterface(this, a)
@@ -214,68 +206,8 @@ module ModGravityInterface
 
         write (*,*) 'GRtrans = ', this%GRtrans
         write (*,*) 'MGDE_pert = ', this%MGDE_pert
-        write (*,*) 'MGDE_const = ', this%MGDE_const
         write (*,*) 'MG_flag = ', this%MG_flag
         write (*,*) 'CDM_flag = ', this%CDM_flag
-
-        write (*,*) 'adotoa = ', this%adotoa
-        write (*,*) 'Hdot = ', this%Hdot
-        write (*,*) 'grho = ', this%grho
-        write (*,*) 'gpres = ', this%gpres
-        write (*,*) 'grhob_t = ', this%grhob_t    
-        write (*,*) 'grhoc_t = ', this%grhoc_t
-        write (*,*) 'grhog_t = ', this%grhog_t 
-        write (*,*) 'grhor_t = ', this%grhor_t
-        write (*,*) 'grhov_t = ', this%grhov_t  
-        write (*,*) 'gpresv_t = ', this%gpresv_t 
-        write (*,*) 'grhonu_t = ', this%grhonu_t
-        write (*,*) 'gpresnu_t = ', this%gpresnu_t
-    
-        write (*,*) 'k = ', this%k
-        write (*,*) 'k2 = ', this%k2
-        write (*,*) 'dgrho = ', this%dgrho
-        write (*,*) 'dgrhoc = ', this%dgrhoc
-        write (*,*) 'dgq = ', this%dgq
-        write (*,*) 'dgqc = ', this%dgqc 
-        write (*,*) 'pidot_sum = ', this%pidot_sum
-        write (*,*) 'dgpi_w_sum = ', this%dgpi_w_sum
-        write (*,*) 'dgpi = ', this%dgpi   
-        write (*,*) 'dgpi_diff = ', this%dgpi_diff
-        write (*,*) 'dgpidot = ', this%dgpidot
-        write (*,*) 'rhoDelta = ', this%rhoDelta  
-        write (*,*) 'rhoDeltadot = ', this%rhoDeltadot  
-        write (*,*) 'rhoDeltac = ', this%rhoDeltac
-        write (*,*) 'rhoDeltacdot = ', this%rhoDeltacdot 
-    
-        write (*,*) 'mu = ', this%mu
-        write (*,*) 'mudot = ', this%mudot
-        write (*,*) 'gamma = ', this%gamma
-        write (*,*) 'gammadot = ', this%gammadot
-        write (*,*) 'q = ', this%q
-        write (*,*) 'qdot = ', this%qdot
-        write (*,*) 'r = ', this%r
-        write (*,*) 'rdot = ', this%rdot
-        write (*,*) 'BigSigma = ', this%BigSigma
-        write (*,*) 'BigSigmadot = ', this%BigSigmadot
-        write (*,*) 'C_phi = ', this%C_phi
-        write (*,*) 'C_phidot = ', this%C_phidot
-    
-        write (*,*) 'z = ', this%z
-        write (*,*) 'sigma = ', this%sigma
-        write (*,*) 'sigmadot = ', this%sigmadot
-        write (*,*) 'etak = ', this%etak
-        write (*,*) 'etadot = ', this%etadot
-    
-        write (*,*) 'MG_alpha = ', this%MG_alpha
-        write (*,*) 'MG_alphadot = ', this%MG_alphadot
-        write (*,*) 'MG_phi = ', this%MG_phi
-        write (*,*) 'MG_phidot = ', this%MG_phidot
-        write (*,*) 'MG_psi = ', this%MG_psi
-        write (*,*) 'MG_psidot = ', this%MG_psidot
-        write (*,*) 'MG_ISW = ', this%MG_ISW
-        write (*,*) 'MG_lensing = ', this%MG_lensing
-        write (*,*) 'source1 = ', this%source1
-        write (*,*) 'source3 = ', this%source3
 
     end subroutine TModGravityModel_PrintAttributes
 
@@ -288,28 +220,10 @@ module ModGravityInterface
         class(TModGravityModel) :: this
 
         ! 1. Background quantities
-        this%adotoa     = 0._dl
-        this%Hdot       = 0._dl
-        this%grho       = 0._dl
-        this%gpres      = 0._dl
-        this%grhob_t    = 0._dl
-        this%grhoc_t    = 0._dl
-        this%grhog_t    = 0._dl
-        this%grhor_t    = 0._dl
         this%grhov_t    = 0._dl
         this%gpresv_t   = 0._dl
-        this%grhonu_t   = 0._dl
-        this%gpresnu_t  = 0._dl
 
         ! 2. Perturbation quantities
-        this%k          = 0._dl
-        this%k2         = 0._dl
-        this%dgrho      = 0._dl
-        this%dgq        = 0._dl
-        this%pidot_sum  = 0._dl
-        this%dgpi_w_sum = 0._dl
-        this%dgpi       = 0._dl
-        this%dgpi_diff  = 0._dl
         this%dgpidot    = 0._dl
         this%rhoDelta   = 0._dl
         this%rhoDeltadot= 0._dl
@@ -328,7 +242,6 @@ module ModGravityInterface
         this%z          = 0._dl
         this%sigma      = 0._dl
         this%sigmadot   = 0._dl
-        this%etak       = 0._dl
         this%etadot     = 0._dl
 
         !> 5. ISW and lensing realted quantities
@@ -399,25 +312,25 @@ module ModGravityInterface
         real(dl), intent(in) :: a   !< scale factor
         character(*), parameter :: cache_output_format = 'e18.8'
 
-        ! 1. Write the sources
-        write(111,'(14'//cache_output_format//')') this%k, a, this%MG_ISW, this%MG_Lensing,&
-                                                    & this%source1, this%source3
+        ! ! 1. Write the sources
+        ! write(111,'(14'//cache_output_format//')') this%k, a, this%MG_ISW, this%MG_Lensing,&
+        !                                             & this%source1, this%source3
 
-        ! 2. Write the MG functions and the potentials
-        write(222,'(14'//cache_output_format//')') this%k, a, this%mu, this%gamma, this%q, this%r, &
-                                                & this%MG_phi, this%MG_psi, this%MG_phidot, this%MG_psidot
+        ! ! 2. Write the MG functions and the potentials
+        ! write(222,'(14'//cache_output_format//')') this%k, a, this%mu, this%gamma, this%q, this%r, &
+        !                                         & this%MG_phi, this%MG_psi, this%MG_phidot, this%MG_psidot
 
-        ! 3. Write the Einstein equations solutions
-        write(333,'(14'//cache_output_format//')') this%k, a, this%etak, this%z, this%sigma,&
-                                                & this%etadot,this%sigmadot
+        ! ! 3. Write the Einstein equations solutions
+        ! write(333,'(14'//cache_output_format//')') this%k, a, this%etak, this%z, this%sigma,&
+        !                                         & this%etadot,this%sigmadot
 
-        ! 4. Write the Perturbations Solutions
-        write(444,'(14'//cache_output_format//')') this%k, a, this%dgrho, this%dgq, this%rhoDelta,&
-                                                    & this%dgpi, this%pidot_sum, this%dgpi_w_sum
+        ! ! 4. Write the Perturbations Solutions
+        ! write(444,'(14'//cache_output_format//')') this%k, a, this%dgrho, this%dgq, this%rhoDelta,&
+        !                                             & this%dgpi, this%pidot_sum, this%dgpi_w_sum
 
-        !5. Write the background
-        write(555,'(14'//cache_output_format//')') this%k, a, this%adotoa, this%Hdot, this%grhov_t,&
-                                                    & this%gpresv_t
+        ! !5. Write the background
+        ! write(555,'(14'//cache_output_format//')') this%k, a, this%adotoa, this%Hdot, this%grhov_t,&
+        !                                             & this%gpresv_t
 
     end subroutine MGCAMB_dump_cache
 

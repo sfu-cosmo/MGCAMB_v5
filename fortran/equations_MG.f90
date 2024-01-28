@@ -5,23 +5,15 @@
     function dtauda(this,a)
         use results
         use DarkEnergyInterface
-        !> MGCAMB MOD START
-	    use MGCAMB
-	    !< MGCAMB MOD END
-
         implicit none
         class(CAMBdata) :: this
         real(dl), intent(in) :: a
         real(dl) :: dtauda, grhoa2, grhov_t
 
-        ! TODO: I'm not doing DE yet, fix this later!
-        ! TODO: check this is fixed now
-
         call this%CP%DarkEnergy%BackgroundDensityAndPressure(this%grhov, a, grhov_t)
 
         !  8*pi*G*rho*a**4.
         grhoa2 = this%grho_no_de(a) +  grhov_t * a**2
-
         if (grhoa2 <= 0) then
             call GlobalError('Universe stops expanding before today (recollapse not supported)', error_unsupported_params)
             dtauda = 0
@@ -572,9 +564,12 @@
     maxeq = maxeq +  (EV%lmaxg+1)+(EV%lmaxnr+1)+EV%lmaxgpol-1
 
     !Dark energy
-    !> MGCAMB MOD START: 
-    if ((.not. CP%DarkEnergy%is_cosmological_constant .and. CP%ModGravity%MG_flag == 0) &
-        .or. (.not. CP%ModGravity%MGDE_const .and. CP%ModGravity%MG_flag /= 0 .and. CP%ModGravity%MGDE_pert)) then
+    !> MGCAMB MOD START
+    ! TODO: print warning if user asks for both DE and MG perturbations
+    if (.not. CP%DarkEnergy%is_cosmological_constant .and. &
+        & ( CP%ModGravity%MG_flag == 0 .or. &
+        & CP%ModGravity%MG_flag /= 0 .and. CP%ModGravity%MGDE_pert ) ) then
+
         EV%w_ix = neq + 1
         neq = neq + CP%DarkEnergy%num_perturb_equations
         maxeq = maxeq + CP%DarkEnergy%num_perturb_equations
@@ -2242,6 +2237,7 @@
     real(dl) ISW, quadrupole_source, doppler, monopole_source, tau0, ang_dist
     real(dl) dgrho_de, dgq_de, cs2_de
 
+    ! TODO: aren't these MG variables?
     real(dl) dgrhoc, dgqc
     real(dl) m,mdot,beta,betadot
     real(dl) mu, mudot
@@ -2251,7 +2247,7 @@
     real(dl) muall, mucdm 
 
     real(dl) vc, vcdot 
-	real(dl) MGDE_ISW, w_MGDE   
+	real(dl) MGDE_ISW  
 
     !> MGCAMB MOD START: adding MGCAMB parameters
     !type(MGCAMB_timestep_cache) :: mgcamb_cache
@@ -2316,12 +2312,13 @@
     end if
     !< MGCAMB MOD END
 
-    ! NOTE to self: verify whether this should be kept in future
-    if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
-        dgq=grhob_t*vb + grhoc_t*vc
-    else
-        dgq=grhob_t*vb
-    end if
+    ! TODO: tempmodel=4 is not yet restructured
+    ! ! NOTE to self: verify whether this should be kept in future
+    ! if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
+    !     dgq=grhob_t*vb + grhoc_t*vc
+    ! else
+    !     dgq=grhob_t*vb
+    ! end if
 
     dgqc =grhoc_t*vc
 
@@ -2344,6 +2341,9 @@
         adotoa=sqrt((grho+State%grhok)/3._dl)
         cothxor=1._dl/State%tanfunc(tau/State%curvature_radius)/State%curvature_radius
     else
+        ! SPAM!!! DEBUG!!!! TODO
+        write(*,*) "This check should have really have happened elsewhere"
+
         Stop " MGCAMB works only for flat universe at the moment. Please check www.sfu.ca/~aha25/MGCAMB.html for updates."
     end if
     !< MGCAMB MOD END
@@ -2424,14 +2424,8 @@
     !> MGCAMB MOD START: computing Z, sigma in MG
     if ( tempmodel /= 0 ) then
 
-        ! NOTE TO SELF: the cache won't be needed - presumably somewhere in the MG modules
-        ! I will have to call the camb quantities instead of the cache quantities
-
         ! 1. Filling the cache
-
         gpres = (grhog_t+grhor_t)/3.d0 + State%CP%ModGravity%gpresv_t + gpres_nu
-        State%CP%ModGravity%gpres  = gpres
-        State%CP%ModGravity%grho   = grho
         dgpi                = 0.d0
         dgpi_w_sum          = 0.d0
 
@@ -2445,34 +2439,12 @@
         dgpi = dgpi + grhor_t*pir + grhog_t*pig
         dgpi_w_sum = dgpi_w_sum + 3.d0*(grhor_t*pir+grhog_t*pig)
 
-
-        ! filling the cache
-        ! background quantities
-        State%CP%ModGravity%grhob_t    = grhob_t
-        State%CP%ModGravity%grhoc_t    = grhoc_t
-        State%CP%ModGravity%grhor_t    = grhor_t
-        State%CP%ModGravity%grhog_t    = grhog_t
-        State%CP%ModGravity%gpresnu_t  = gpres_nu
-        State%CP%ModGravity%grhonu_t   = grhonu_t
-        ! perturbation quantities
-        State%CP%ModGravity%k          = k
-        State%CP%ModGravity%k2         = k2
-        State%CP%ModGravity%etak       = etak
-        ! filling expansion history cache
-        State%CP%ModGravity%adotoa     = adotoa
-        State%CP%ModGravity%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
-        ! fill perturbation cache
-        State%CP%ModGravity%dgrho      = dgrho
-        State%CP%ModGravity%dgrhoc     = dgrhoc 
-        State%CP%ModGravity%dgq        = dgq
-        State%CP%ModGravity%dgpi_w_sum = dgpi_w_sum
-        State%CP%ModGravity%dgpi       = dgpi
+        State%CP%ModGravity%Hdot = adotoa**2 - 0.5d0 * ( grho + gpres )
         State%CP%ModGravity%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
         State%CP%ModGravity%rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
-        State%CP%ModGravity%dgqc       = dgqc      
 
         ! 2. Computing the MG functions
-        call State%CP%ModGravity%ComputeMGFunctions( a )
+        call State%CP%ModGravity%ComputeMGFunctions( a, k2, adotoa )
 
         !m = State%CP%ModGravity%mu
         !beta = MGCAMB_Beta( a, mgcamb_par_cache, mgcamb_cache )
@@ -2487,7 +2459,8 @@
 
 
         ! 3. Computing the shear perturbation sigma
-        call State%CP%ModGravity%Computesigma( a )
+        ! TODO: compute sigma should probably be a deferred procedure, as with ISW and lensing
+        call State%CP%ModGravity%Computesigma( a, k, k2, etak, adotoa, dgpi )
         sigma = State%CP%ModGravity%sigma
 
         MG_alpha = State%CP%ModGravity%MG_alpha
@@ -2618,16 +2591,15 @@
         end if
 
         ! 5. Compute Z
-        ! fill the cache
-        State%CP%ModGravity%pidot_sum = pidot_sum
+        call State%CP%ModGravity%Computez( a, k, k2, adotoa, &
+                & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpres_nu, &
+                & dgq, dgpi, dgpi_w_sum, pidot_sum  )
 
-        ! calculate z
-        call State%CP%ModGravity%Computez( a )
         z           = State%CP%ModGravity%z
         sigmadot    = State%CP%ModGravity%sigmadot
         etadot      = State%CP%ModGravity%etadot
 
-        ayprime(ix_etak)= k*etadot
+        ayprime(ix_etak)= k * etadot
 
     else ! GR limit
         !  Get sigma (shear) and z from the constraints
@@ -2646,28 +2618,30 @@
     !< MGCAMB MOD END
 
     !> MGCAMB MOD START: DE perturbed only if not MG
-    if (.not. EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0 ) &
+    if ( (.not. EV%is_cosmological_constant) .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
+        & (State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) ) then
+
         call State%CP%DarkEnergy%PerturbationEvolve(ayprime, w_dark_energy_t, &
         EV%w_ix, a, adotoa, k, z, ay)
-    if (.not. State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert ) &
-        call State%CP%DarkEnergy%PerturbationEvolve(ayprime, w_MGDE, &
-        EV%w_ix, a, adotoa, k, z, ay)
-     !< MGCAMB MOD END
-
-    !  CDM equation of motion
-    if ( tempmodel == 4 ) then 
-
-        if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
-
-            clxcdot=-k*(z+vc) - beta*betadot*(dgrhoc - 3._dl * State%CP%ModGravity%grhoc_t * MG_alpha*adotoa) &
-                    /(k2+(m**2._dl)*a**2._dl)
-
-        end if 
-
-    else 
-         clxcdot = -k*z 
 
     end if
+     !< MGCAMB MOD END
+
+    ! TODO: tempmodel=4 is yet to be restructured
+    ! !  CDM equation of motion
+    ! if ( tempmodel == 4 ) then 
+
+    !     if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
+
+    !         clxcdot=-k*(z+vc) - beta * betadot*(dgrhoc - 3._dl * grhoc_t * State%CP%%ModGravity%MG_alpha * adotoa) &
+    !                 /(k2+(m**2._dl)*a**2._dl)
+
+    !     end if 
+
+    ! else 
+    !      clxcdot = -k*z 
+
+    ! end if
 
     ayprime(ix_clxc)=clxcdot
 
@@ -2772,17 +2746,18 @@
 
     ayprime(ix_vb)=vbdot
 
-    if ( tempmodel == 4 ) then
+    ! TODO: tempmodel=4 is not yet restructured
+    ! if ( tempmodel == 4 ) then
 
-        if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
-          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl*State%CP%ModGravity%grhoc_t*MG_alpha*adotoa)&
-                            /(k2+(m**2._dl)*a**2._dl)
+    !     if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
+    !       vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa ) &
+    !                         /(k2+(m**2._dl)*a**2._dl)
 
-        end if 
+    !     end if 
 
-    else
-        vcdot = 0._dl 
-    end if 
+    ! else
+    !     vcdot = 0._dl 
+    ! end if 
 
     ayprime(ix_vc) = vcdot 
 
@@ -3061,9 +3036,10 @@
                 octgdot=ayprime(EV%g_ix+3)
             end if
         end if
+
 		!>MGCAMB MOD START
-        if ((EV%is_cosmological_constant .and. State%CP%ModGravity%MG_flag == 0) &
-            .or. ( State%CP%ModGravity%MGDE_const .and. State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) then
+            if ( (.not. EV%is_cosmological_constant) .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
+        & (State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) ) then
             dgrho_de=0
             dgq_de=0
         end if
@@ -3078,41 +3054,37 @@
                 dgpi_diff=dgpi_diff, pidot_sum=pidot_sum)
         end if
 
-        !> MGCAMB MOD START: modifying hte expansion history
+        !> MGCAMB MOD START: modifying the expansion history
         if ( State%CP%ModGravity%MG_flag == 0 ) then
             gpres = gpres_noDE + w_dark_energy_t*grhov_t
         else
             gpres= gpres_noDE  + State%CP%ModGravity%gpresv_t
         end if
 
-		if( State%CP%ModGravity%MG_flag == 0 ) then
+		if ( State%CP%ModGravity%MG_flag == 0 .or. &
+            & ( State%CP%ModGravity%MG_flag /= 0 .and. &
+                & (.not. EV%is_cosmological_constant) .and. State%CP%ModGravity%MGDE_pert ) ) then
+
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
                 State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
                 gpres, w_dark_energy_t, State%grhok, adotoa, &
-                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
-		else if(State%CP%ModGravity%MG_flag /= 0 .and. (.not. State%CP%ModGravity%MGDE_const) .and. State%CP%ModGravity%MGDE_pert) then
-			diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
-				State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
-				gpres, w_MGDE, State%grhok, adotoa, &
-				1.d0, k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
+                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)           
+        else
+            diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa
+        endif
+
+        ! ISW effect
+		if ( State%CP%ModGravity%MG_flag /= 0 .and. (.not. EV%is_cosmological_constant) .and. State%CP%ModGravity%MGDE_pert) then
+
 			MGDE_ISW =  State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
-						gpres, w_MGDE, State%grhok, adotoa, &
+						gpres, w_dark_energy_t, State%grhok, adotoa, &
 						1.d0, k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
-		else
-			diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa
-			MGDE_ISW = 0._dl
+        else
+            MGDE_ISW = 0._dl
 		end if
 
-        !> MGCAMB MOD START
-        if ( tempmodel /= 0 ) then
-            ! NOTE TO SELF this looks like a cache to me
-            State%CP%ModGravity%dgpi_diff = dgpi_diff
-            ! redefining pidot_sum (more accurate)
-            State%CP%ModGravity%pidot_sum = pidot_sum
-        end if
-        !< MGCAMB MOD END
-
-        !> MGCAMB MOD START: Weyl Potential
+        !> Weyl Potential
+        ! TODO: get rid of tempmodel variable
         if ( tempmodel == 0 ) then
             phi = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + dgpi)/(2*k2)
             psiN = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + 2._dl*dgpi)/(2*k2)
@@ -3205,7 +3177,8 @@
             else
 
                 ! compute MG ISW
-                call State%CP%ModGravity%ComputeISW( a )
+                call State%CP%ModGravity%ComputeISW( a, adotoa, k, k2, grho, gpres, &
+                                & pidot_sum, dgq, dgpi, dgpi_diff  )
 
                 ISW = exptau * (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)
 				phidot = (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)/2._dl
@@ -3254,8 +3227,9 @@
                         EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                         !We include the lensing factor of two here
                     else
-                        ! DEBUG!!! SPAM!!!
-                        write(*,*) "computing lensing at a = ", a
+                        !!! DEBUG!!! SPAM!!!
+                        write (*,*) "a = ", a, "tau = ", tau, "tau0 = ", tau0
+                        write (*,*) State%tau_maxvis
                         call State%CP%ModGravity%ComputeLensing( a )
                         EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
                                             & (f_K(tau0-State%tau_maxvis)*ang_dist)
@@ -3274,112 +3248,37 @@
                     polter, polterdot, polterddot, octg, octgdot, E, Edot, &
                     opacity, dopacity, ddopacity, visibility, dvisibility, ddvisibility, exptau)
             end if
+
             if (associated(EV%CustomSources)) then
                 select type(DE=>State%CP%DarkEnergy)
                 class is (TDarkEnergyEqnOfState)
                     cs2_de = DE%cs2_lam
                 class default
-                    cs2_de=1
+                    cs2_de = 1
                 end select
                 block
                     procedure(TSource_func), pointer :: custom_sources_func
 
                     call c_f_procpointer(CP%CustomSources%c_source_func,custom_sources_func)
 
-                    !>MGCAMB MOD START
-					if(State%CP%ModGravity%MG_flag==0) then
-                        call custom_sources_func(EV%CustomSources, tau, a, adotoa, grho, gpres,w_dark_energy_t, cs2_de, &
-                            grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t, &
-                            k, etak, ayprime(ix_etak), phi, phidot, sigma, sigmadot, &
-                            dgrho, clxg,clxb,clxc,clxr,clxnu, dgrho_de/grhov_t, delta_p_b, &
-                            dgq, qg, qr, dgq_de/grhov_t, vb, qgdot, qrdot, vbdot, &
-                            dgpi, pig, pir, pigdot, pirdot, diff_rhopi, &
-                            polter, polterdot, polterddot, octg, octgdot, E, Edot, &
-                            opacity, dopacity, ddopacity, visibility, dvisibility, ddvisibility, exptau, &
-                            tau0, State%tau_maxvis, EV%Kf,f_K)
-					else
-						call custom_sources_func(EV%CustomSources, tau, a, adotoa, grho, gpres,w_MGDE, cs2_de, &
-							grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t, &
-							k, etak, ayprime(ix_etak), phi, phidot, sigma, sigmadot, &
-							dgrho, clxg,clxb,clxc,clxr,clxnu, dgrho_de/grhov_t, delta_p_b, &
-							dgq, qg, qr, dgq_de/grhov_t, vb, qgdot, qrdot, vbdot, &
-							dgpi, pig, pir, pigdot, pirdot, diff_rhopi, &
-							polter, polterdot, polterddot, octg, octgdot, E, Edot, &
-							opacity, dopacity, ddopacity, visibility, dvisibility, ddvisibility, exptau, &
-							tau0, State%tau_maxvis, EV%Kf,f_K)
-					end if
-					!>MGCAMB MOD END
+                    call custom_sources_func(EV%CustomSources, tau, a, adotoa, grho, gpres,w_dark_energy_t, cs2_de, &
+                        grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t, &
+                        k, etak, ayprime(ix_etak), phi, phidot, sigma, sigmadot, &
+                        dgrho, clxg,clxb,clxc,clxr,clxnu, dgrho_de/grhov_t, delta_p_b, &
+                        dgq, qg, qr, dgq_de/grhov_t, vb, qgdot, qrdot, vbdot, &
+                        dgpi, pig, pir, pigdot, pirdot, diff_rhopi, &
+                        polter, polterdot, polterddot, octg, octgdot, E, Edot, &
+                        opacity, dopacity, ddopacity, visibility, dvisibility, ddvisibility, exptau, &
+                        tau0, State%tau_maxvis, EV%Kf,f_K)
                 end block
+
             end if
         end if
 
-       !> MGCAMB MOD START
-        if ( State%CP%ModGravity%DebugMGCAMB ) then
+        ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
+    !    !> MGCAMB MOD START
+    !     if ( State%CP%ModGravity%DebugMGCAMB ) then
 
-            !write(*,*) 'writing cache at a,k:', a,k
-            ! NOTE TO SELF: this whole stuff can go
-
-            if ( tempmodel == 0 ) then
-                ! fill the cache with the GR stuff, then dump the cache,
-                ! useful for comparing default CAMB with MGCAMB in GR limit
-                State%CP%ModGravity%grhob_t    = grhob_t
-                State%CP%ModGravity%grhoc_t    = grhoc_t
-                State%CP%ModGravity%grhor_t    = grhor_t
-                State%CP%ModGravity%grhog_t    = grhog_t
-                State%CP%ModGravity%gpresnu_t  = gpres_nu
-                State%CP%ModGravity%grhonu_t   = grhonu_t
-                ! perturbation quantities
-                State%CP%ModGravity%k          = k
-                State%CP%ModGravity%k2         = k2
-                State%CP%ModGravity%etak       = etak
-                ! filling expansion history cache
-                State%CP%ModGravity%adotoa     = adotoa
-                State%CP%ModGravity%Hdot       = adotoa**2 - 0.5d0*(grho+gpres)
-                ! fill perturbation cache
-                State%CP%ModGravity%dgrho      = dgrho
-                State%CP%ModGravity%dgq        = dgq
-                State%CP%ModGravity%dgpi_w_sum = dgpi_w_sum
-                State%CP%ModGravity%dgpi       = dgpi
-                State%CP%ModGravity%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
-                State%CP%ModGravity%pidot_sum  = pidot_sum
-
-                ! Einstein solutions
-                State%CP%ModGravity%z          = z
-                State%CP%ModGravity%sigma      = sigma
-                State%CP%ModGravity%sigmadot   = sigmadot
-                State%CP%ModGravity%etadot     = ayprime(2)/k
-                State%CP%ModGravity%MG_Psi     = 0._dl         !< this needs to be changed
-                State%CP%ModGravity%MG_Phi     = 0._dl         !< this needs to be changed
-                State%CP%ModGravity%MG_Psidot  = 0._dl         !< this needs to be changed
-                State%CP%ModGravity%MG_Phidot  = 0._dl         !< this needs to be changed
-                State%CP%ModGravity%MG_ISW     = 2._dl*phidot
-                State%CP%ModGravity%MG_lensing = 2._dl*phi
-
-                ! MG functions
-                State%CP%ModGravity%mu = 1._dl
-                State%CP%ModGravity%gamma = 1._dl
-                State%CP%ModGravity%q = 1._dl
-                State%CP%ModGravity%r = 1._dl
-
-            end if
-
-            if (associated(EV%OutputSources)) then
-                 State%CP%ModGravity%source1 = EV%OutputSources(1)
-
-                if (size(EV%OutputSources) > 2) then
-                    State%CP%ModGravity%source3 = EV%OutputSources(3)
-                else
-                    State%CP%ModGravity%source3 = 0._dl
-                end if
-            else
-                State%CP%ModGravity%source1 = 0._dl
-                State%CP%ModGravity%source3 = 0._dl
-            end if
-
-            ! dump cache into files
-            call State%CP%ModGravity%MGCAMB_dump_cache( a )
-        end if
-        !< MGCAMB MOD END
 
     end if
 
