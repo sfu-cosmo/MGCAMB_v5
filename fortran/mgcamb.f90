@@ -236,6 +236,7 @@ module MGCAMB
     !> this subroutine computes the perturbation Z in MG
     subroutine TMuGammaParameterization_Computez( this, a, k, k2, adotoa, &
                                                 & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t, &
+                                                & grhov_t, gpresv_t, &
                                                 & dgq, dgpi, dgpi_w_sum, pidot_sum  ) 
 
         class(TMuGammaParameterization) :: this
@@ -243,6 +244,7 @@ module MGCAMB
         real(dl), intent(in) :: k, k2  ! k^2
         real(dl), intent(in) :: adotoa
         real(dl), intent(in) :: grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t
+        real(dl), intent(in) :: grhov_t, gpresv_t
         real(dl), intent(in) :: dgq, dgpi, dgpi_w_sum, pidot_sum 
 
         real(dl) :: fmu
@@ -257,11 +259,11 @@ module MGCAMB
         !> adding the massive neutrinos contibutions, but no DE parts
         if (this%MGDE_pert) then
             fmu = k2 + .5d0 * this%gamma * this%mu * (3._dl * (grhoc_t + grhob_t) &
-                & + 4._dl * (grhog_t + grhor_t ) + 3._dl * (grhonu_t + gpresnu_t ) &
-                & + 3._dl * (this%grhov_t + this%gpresv_t ))
+                & + 4._dl * ( grhog_t + grhor_t ) + 3._dl * (grhonu_t + gpresnu_t ) &
+                & + 3._dl * ( grhov_t + gpresv_t ))
         else
             fmu = k2 + .5d0*this%gamma * this%mu * (3._dl * (grhoc_t + grhob_t) &
-                & + 4._dl * (grhog_t + grhor_t ) + 3._dl * (grhonu_t + gpresnu_t ) )
+                & + 4._dl * ( grhog_t + grhor_t ) + 3._dl * (grhonu_t + gpresnu_t ) )
         end if
 
         !> adding massive neutrinos contributions
@@ -272,7 +274,7 @@ module MGCAMB
         if(this%MGDE_pert) then
             term2 = k2 * this%MG_alpha * (this%mu* this%gamma*( grhoc_t + grhob_t   &
                     & +(4._dl/3._dl) * ( grhog_t + grhor_t ) + ( grhonu_t + gpresnu_t )  &
-                    & + (this%grhov_t + this%gpresv_t))- 2._dl*( adotoa**2 - this%Hdot ))  
+                    & + ( grhov_t + gpresv_t )) -2._dl*( adotoa**2 - this%Hdot ))  
         else
             term2 = k2 * this%MG_alpha * (this%mu * this%gamma *( grhoc_t + grhob_t   &
                 & + (4._dl/3._dl) * ( grhog_t + grhor_t ) + ( grhonu_t + gpresnu_t ) ) &
@@ -365,6 +367,7 @@ module MGCAMB
 
         call TModGravityModel_PrintAttributes(this)
 
+        write (*,*) 'mu-gamma parameterization, BZ parameterization'
         write (*,*) 'B1 = ', this%B1
         write (*,*) 'B2 = ', this%B2
         write (*,*) 'lambda1_2 = ', this%lambda1_2

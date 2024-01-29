@@ -29,8 +29,8 @@ module ModGravityInterface
 
         ! 1. Background quantities
         real(dl) :: Hdot
-        real(dl) :: grhov_t  
-        real(dl) :: gpresv_t 
+        !real(dl) :: grhov_t  
+        !real(dl) :: gpresv_t 
 
         ! 2. Perturbation quantities
         real(dl) :: dgpidot
@@ -118,8 +118,10 @@ module ModGravityInterface
         end subroutine ComputesigmaInterface
 
         subroutine ComputezInterface(this, a, k, k2, adotoa, &
-                                   & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t, &
-                                   & dgq, dgpi, dgpi_w_sum, pidot_sum  )
+                                    & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t, &
+                                    & grhov_t, gpresv_t, &
+                                    & dgq, dgpi, dgpi_w_sum, pidot_sum ) 
+
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
@@ -127,7 +129,9 @@ module ModGravityInterface
             real(dl), intent(in) :: k, k2
             real(dl), intent(in) :: adotoa
             real(dl), intent(in) :: grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t
+            real(dl), intent(in) :: grhov_t, gpresv_t
             real(dl), intent(in) :: dgq, dgpi, dgpi_w_sum, pidot_sum 
+
         end subroutine ComputezInterface
 
         subroutine ComputeISWInterface( this, a, adotoa, k, k2, & 
@@ -220,8 +224,8 @@ module ModGravityInterface
         class(TModGravityModel) :: this
 
         ! 1. Background quantities
-        this%grhov_t    = 0._dl
-        this%gpresv_t   = 0._dl
+        !this%grhov_t    = 0._dl
+        !this%gpresv_t   = 0._dl
 
         ! 2. Perturbation quantities
         this%dgpidot    = 0._dl
@@ -305,12 +309,14 @@ module ModGravityInterface
 
     ! ---------------------------------------------------------------------------------------------
     !> Subroutine that prints the MGCAMB cache on a file
-    subroutine MGCAMB_dump_cache( this, a, k, etak, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
+    subroutine MGCAMB_dump_cache( this, a, k, etak, grhov_t, gpresv_t, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
 
         class(TModGravityModel) :: this
         real(dl), intent(in) :: a   !< scale factor
         real(dl), intent(in) :: k
-        real(dl), intent(in) :: etak, dgrho, dgq, dgpi
+        real(dl), intent(in) :: etak
+        real(dl), intent(in) :: grhov_t, gpresv_t
+        real(dl), intent(in) :: dgrho, dgq, dgpi
         real(dl), intent(in) :: adotoa, pidot_sum, dgpi_w_sum
         character(*), parameter :: cache_output_format = 'e18.8'
 
@@ -329,7 +335,7 @@ module ModGravityInterface
                                                     & dgpi, pidot_sum, dgpi_w_sum
 
         !5. Write the background
-        write(555,'(14'//cache_output_format//')') k, a, adotoa, this%Hdot, this%grhov_t,  this%gpresv_t
+        write(555,'(14'//cache_output_format//')') k, a, adotoa, this%Hdot, grhov_t,  gpresv_t
 
     end subroutine MGCAMB_dump_cache
 

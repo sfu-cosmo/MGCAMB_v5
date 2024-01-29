@@ -2215,7 +2215,7 @@
     real(dl) G11_t,G30_t, wnu_arr(max_nu)
 
     real(dl) dgq,grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t,sigma,polter
-    real(dl) w_dark_energy_t !equation of state of dark energy
+    real(dl) w_dark_energy_t, gpresv_t !equation of state of dark energy, dark energy pressure
     real(dl) gpres_noDE !Pressure with matter and radiation, no dark energy
     real(dl) qgdot,qrdot,pigdot,pirdot,vbdot,dgrho,adotoa
     real(dl) a,a2,z,clxc,clxb,vb,clxg,qg,pig,clxr,qr,pir
@@ -2297,6 +2297,8 @@
     else
         call State%CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)
     end if
+
+    gpresv_t = w_dark_energy_t * grhov_t
 
     !total perturbations: matter terms first, then add massive nu, de and radiation
     !  8*pi*a*a*SUM[rho_i*clx_i]
@@ -2426,7 +2428,7 @@
     if ( tempmodel /= 0 ) then
 
         ! 1. Filling the cache
-        gpres = (grhog_t+grhor_t)/3.d0 + State%CP%ModGravity%gpresv_t + gpres_nu
+        gpres = (grhog_t+grhor_t)/3.d0 + gpresv_t + gpres_nu
         dgpi                = 0.d0
         dgpi_w_sum          = 0.d0
 
@@ -2593,8 +2595,9 @@
 
         ! 5. Compute Z
         call State%CP%ModGravity%Computez( a, k, k2, adotoa, &
-                & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpres_nu, &
-                & dgq, dgpi, dgpi_w_sum, pidot_sum  )
+                    & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpres_nu, &
+                    & grhov_t, gpresv_t, &
+                    & dgq, dgpi, dgpi_w_sum, pidot_sum ) 
 
         z           = State%CP%ModGravity%z
         sigmadot    = State%CP%ModGravity%sigmadot
@@ -2688,15 +2691,10 @@
     if (EV%TightCoupling) then
         !  ddota/a
         !> MGCAMB MOD START
-        if ( State%CP%ModGravity%MG_flag == 0 ) then
-            gpres = gpres_noDE + w_dark_energy_t*grhov_t
-            adotdota=(adotoa*adotoa-gpres)/2
-        else
-            gpres=gpres_noDE + State%CP%ModGravity%gpresv_t
-            adotdota=(adotoa*adotoa-gpres)/2
-        end if
+        gpres = gpres_noDE + gpresv_t
         !< MGCAMB MOD END
 
+        adotdota=(adotoa*adotoa-gpres)/2
         pig = 32._dl/45/opacity*k*(sigma+vb)
 
         !  First-order approximation to baryon-photon splip
@@ -3056,11 +3054,7 @@
         end if
 
         !> MGCAMB MOD START: modifying the expansion history
-        if ( State%CP%ModGravity%MG_flag == 0 ) then
-            gpres = gpres_noDE + w_dark_energy_t*grhov_t
-        else
-            gpres= gpres_noDE  + State%CP%ModGravity%gpresv_t
-        end if
+        gpres = gpres_noDE + gpresv_t
 
 		if ( State%CP%ModGravity%MG_flag == 0 .or. &
             & ( State%CP%ModGravity%MG_flag /= 0 .and. &
@@ -3075,6 +3069,8 @@
         endif
 
         ! ISW effect
+        ! TODO: this is about DE: does it make sense to keep here?
+        ! TODO: camb seems to have its own variable for MGDE_pert: check this is true and reinstate mgcamb checks on DE. CLATOS
 		if ( State%CP%ModGravity%MG_flag /= 0 .and. (.not. EV%is_cosmological_constant) .and. State%CP%ModGravity%MGDE_pert) then
 
 			MGDE_ISW =  State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
@@ -3278,9 +3274,10 @@
         ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
        !> MGCAMB MOD START
         if ( State%CP%ModGravity%DebugMGCAMB ) then
-            call State%CP%ModGravity%MGCAMB_dump_cache( a, k, etak, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
-        !< MGCAMB MOD END
+            call State%CP%ModGravity%MGCAMB_dump_cache( a, k, etak, grhov_t, gpresv_t, &
+                                        & dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
         end if
+        !< MGCAMB MOD END
 
         if (associated(EV%OutputSources)) then
             State%CP%ModGravity%source1 = EV%OutputSources(1)
