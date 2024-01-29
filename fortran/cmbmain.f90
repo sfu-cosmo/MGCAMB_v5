@@ -1026,6 +1026,14 @@
         end do
     end if
 
+    ! !!! DEBUG!!! SPAM!!!
+    ! write (*,*) "start of debug"
+    ! do j=1,State%TimeSteps%npoints
+    !     tauend=State%TimeSteps%points(j)
+    !     write (*,*) j, tauend
+    ! end do
+
+
     do j=2,State%TimeSteps%npoints
         tauend=State%TimeSteps%points(j)
 

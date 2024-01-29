@@ -3228,8 +3228,9 @@
                         EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                         !We include the lensing factor of two here
                     else
+                        call State%CP%ModGravity%ComputeLensing( a )
                         !!! DEBUG!!! SPAM!!!
-                       call State%CP%ModGravity%ComputeLensing( a )
+                        write (*,*) "a = ", a, "MG_lensing = ", State%CP%ModGravity%MG_lensing
                         EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
                                             & (f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
