@@ -53,6 +53,7 @@
     use lensing
     use Bispectrum
     !> MGCAMB MOD START
+    use ModGravityInterface, only : print_MGCAMB_header
 	use MGCAMB
 	!< MGCAMB MOD END
 
@@ -62,6 +63,8 @@
     logical, optional :: onlytransfer, onlytimesources
     type(CAMBparams) P
     logical :: call_again
+
+    call print_MGCAMB_header()
 
     global_error_flag = 0
     call_again = .false.
