@@ -39,6 +39,7 @@
     !Description of this file. Change if you make modifications.
     character(LEN=*), parameter :: Eqns_name = 'cdm_gauge'
 
+    ! TODO: remember this parameter for later use in Python
     logical, parameter :: plot_evolve = .false. !for outputing time evolution
     !> MGCAMB MOD START: adding a new variable vc
     ! integer, parameter :: basic_num_eqns = 4
@@ -1029,7 +1030,8 @@
     subroutine MassiveNuVarsOut(EV,y,yprime,a,adotoa,grho,gpres,dgrho,dgq,dgpi, dgpi_diff,pidot_sum,clxnu_all, dgpi_w_sum)
     implicit none
     type(EvolutionVars) EV
-    real(dl) :: y(EV%nvar), yprime(EV%nvar),a, adotoa
+    real(dl) :: y(EV%nvar), yprime(EV%nvar)
+    real(dl), intent(in) :: a, adotoa
     real(dl), optional :: grho,gpres,dgrho,dgq,dgpi, dgpi_diff,pidot_sum,clxnu_all
 
     !> MGCAMB MOD START
@@ -2238,22 +2240,23 @@
     real(dl) ISW, quadrupole_source, doppler, monopole_source, tau0, ang_dist
     real(dl) dgrho_de, dgq_de, cs2_de
 
-    ! TODO: aren't these MG variables?
-    real(dl) dgrhoc, dgqc
-    real(dl) m,mdot,beta,betadot
-    real(dl) mu, mudot
-    real(dl) psiN, phiN 
-    real(dl) m2,beta2
-    real(dl) MG_alpha
-    real(dl) muall, mucdm 
-
-    real(dl) vc, vcdot 
-	real(dl) MGDE_ISW  
-
     !> MGCAMB MOD START: adding MGCAMB parameters
-    !type(MGCAMB_timestep_cache) :: mgcamb_cache
-    integer :: tempmodel
-    real(dl) :: ISW_MG
+    ! variables useful for MG, set within MG modules
+    real(dl) Hdot, rhoDelta, rhoDeltac ! background variables
+    real(dl) dgrhoc, dgqc
+    real(dl) m, mdot, beta, betadot
+    real(dl) mu, mudot, gamma, gammadot
+    real(dl) psiN, phiN 
+    real(dl) m2, beta2, r
+    real(dl) MG_alpha, MG_alphadot
+    real(dl) MG_phi, MG_psi, MG_phidot, MG_psidot
+    real(dl) muall, mucdm 
+    real(dl) vc, vcdot 
+    ! TODO: these sources might be for debugging only, keep or remove?
+    real(dl) source1, source3
+	real(dl) MGDE_ISW, MG_ISW, MG_lensing
+
+    integer :: tempmodel ! TODO: remove
     real(dl) :: dgpi_w_sum
     real(dl) :: etadot
     !< MGCAMB MOD END
@@ -2309,6 +2312,7 @@
 
 
     !> MGCAMB MOD START: switch MG on according to the model (in model 7 GRtrans is replaced by a_star)
+    ! TODO: not needed
     tempmodel = 0
     if ( State%CP%ModGravity%MG_flag /= 0 .and. a .ge. State%CP%ModGravity%GRtrans ) then
         tempmodel = State%CP%ModGravity%MG_flag
@@ -2316,7 +2320,7 @@
     !< MGCAMB MOD END
 
     ! TODO: tempmodel=4 is not yet restructured
-    ! NOTE to self: verify whether this should be kept in future
+    ! TODO rhoDeltac is only used with this model, remove it from others
     if(tempmodel == 4 .and. State%CP%ModGravity%CDM_flag == 1) then ! CDM QSA
         dgq = grhob_t*vb + grhoc_t*vc
     else
@@ -2442,31 +2446,21 @@
         dgpi = dgpi + grhor_t*pir + grhog_t*pig
         dgpi_w_sum = dgpi_w_sum + 3.d0*(grhor_t*pir+grhog_t*pig)
 
-        State%CP%ModGravity%Hdot = adotoa**2 - 0.5d0 * ( grho + gpres )
-        State%CP%ModGravity%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
-        State%CP%ModGravity%rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
+        ! set Hdot, rhoDelta, rhoDeltac
+        call State%CP%ModGravity%SetBackground( adotoa, k, grho, gpres, dgrho, dgrhoc, dgq, dgqc, &
+                                                & Hdot, rhoDelta, rhoDeltac )
 
         ! 2. Computing the MG functions
-        call State%CP%ModGravity%ComputeMGFunctions( a, k2, adotoa )
-
-        !m = State%CP%ModGravity%mu
-        !beta = MGCAMB_Beta( a, mgcamb_par_cache, mgcamb_cache )
-        !mdot = MGCAMB_Mdot( a, mgcamb_par_cache, mgcamb_cache )
-        !betadot = MGCAMB_Betadot( a, mgcamb_par_cache, mgcamb_cache )
-
-        mu = State%CP%ModGravity%mu
-        mudot = State%CP%ModGravity%mudot
-
-        !beta2 = beta**2
-        !m2 = m**2
+        ! TODO: this must be adjusted for an arbitrary parameterisation. Other variables will have to be added here
+        ! and set to zero in the relevant child type
+        call State%CP%ModGravity%ComputeMGFunctions( a, k2, adotoa, mu, mudot, gamma, gammadot, &
+                                                    & m, mdot, beta, betadot )
 
 
-        ! 3. Computing the shear perturbation sigma
-        ! TODO: compute sigma should probably be a deferred procedure, as with ISW and lensing
-        call State%CP%ModGravity%Computesigma( a, k, k2, etak, adotoa, dgpi )
-        sigma = State%CP%ModGravity%sigma
-
-        MG_alpha = State%CP%ModGravity%MG_alpha
+        ! 3. Computing the shear perturbation sigma and MG_alpha
+        ! TODO: it's unclear MG_alpha is used elsewhere (only tempmodel=4, that is still to restructure)
+        call State%CP%ModGravity%Computesigma( a, k, k2, etak, adotoa, dgpi, &
+                                                & mu, gamma, rhoDelta, sigma, MG_alpha )
 
 
         ! 4. Computing pidot quantities (sigma is necessary)
@@ -2593,15 +2587,12 @@
 
         end if
 
-        ! 5. Compute Z
-        call State%CP%ModGravity%Computez( a, k, k2, adotoa, &
-                    & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpres_nu, &
-                    & grhov_t, gpresv_t, &
-                    & dgq, dgpi, dgpi_w_sum, pidot_sum ) 
-
-        z           = State%CP%ModGravity%z
-        sigmadot    = State%CP%ModGravity%sigmadot
-        etadot      = State%CP%ModGravity%etadot
+        ! 5. Compute MG_phi, MG_psi, MG_phidot, Z, sigmadot and etadot
+        call State%CP%ModGravity%Computez( a, k, k2, adotoa, Hdot, rhoDelta, &
+                                        & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpres_nu, &
+                                        & grhov_t, gpresv_t, dgq, dgpi, dgpi_w_sum, pidot_sum, &
+                                        & mu, gamma, mudot, gammadot, sigma, MG_alpha, &
+                                        & MG_phi, MG_psi, MG_phidot, z, sigmadot, etadot ) 
 
         ayprime(ix_etak)= k * etadot
 
@@ -2637,7 +2628,7 @@
 
         if (State%CP%ModGravity%CDM_flag == 1) then !CDM QSA
 
-            clxcdot=-k*(z+vc) - beta * betadot*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa) &
+            clxcdot=-k*(z+vc) - beta * betadot*(dgrhoc - 3._dl * grhoc_t * MG_alpha * adotoa) &
                     /(k2+(m**2._dl)*a**2._dl)
 
         end if 
@@ -2708,12 +2699,10 @@
             !  8*pi*G*a*a*SUM[rho_i*sigma_i]
             dgs = grhog_t*pig+grhor_t*pir
 
-            !> MGCAMB MOD START: simgadot in MG
+            !> MGCAMB MOD START: simgadot in GR
             if ( tempmodel == 0 ) then
                 ! Define shear derivative to first order
                 sigmadot = -2*adotoa*sigma-dgs/k+etak
-            else
-                sigmadot = State%CP%ModGravity%sigmadot
             end if
             !< MGCAMB MOD END
  
@@ -2749,9 +2738,7 @@
     if ( tempmodel == 4 ) then
 
         if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
-          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl * grhoc_t * State%CP%ModGravity%MG_alpha * adotoa ) &
-                            /(k2+(m**2._dl)*a**2._dl)
-
+          vcdot = -adotoa*vc - k*beta2*(dgrhoc - 3._dl * grhoc_t * MG_alpha * adotoa ) /(k2+(m**2._dl)*a**2._dl)
         end if 
 
     else
@@ -3087,7 +3074,7 @@
             psiN = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + 2._dl*dgpi)/(2*k2)
             phiN = -psiN - ((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + dgpi)/k2
         else
-           phi = (State%CP%ModGravity%MG_psi+State%CP%ModGravity%MG_phi)/2._dl
+           phi = (MG_psi + MG_phi)/2._dl
         end if
         !< MGCAMB MOD END
 
@@ -3106,7 +3093,7 @@
             if ( tempmodel == 0 ) then
                 EV%OutputTransfer(Transfer_Weyl) = k2*phi
             else
-                EV%OutputTransfer(Transfer_Weyl) = (State%CP%ModGravity%MG_psi+State%CP%ModGravity%MG_phi)*k**2._dl/2._dl
+                EV%OutputTransfer(Transfer_Weyl) = (MG_psi+MG_phi)*k**2._dl/2._dl
             end if
             !< MGCAMB MOD END
 
@@ -3173,14 +3160,15 @@
 
             else
 
-                ! compute MG ISW
-                call State%CP%ModGravity%ComputeISW( a, adotoa, k, k2, grho, gpres, &
-                                & pidot_sum, dgq, dgpi, dgpi_diff  )
+                ! compute MG ISW and lensing: set variables MG_alphadot, MG_ISW, MG_lensing
+                call State%CP%ModGravity%ComputeISWAndLensing( k, k2, a, adotoa, Hdot, &
+                                                            & rhoDelta, mu, mudot, grho, gpres, pidot_sum, &
+                                                            & z, MG_phi, MG_psi, MG_alpha, MG_phidot, &
+                                                            & dgq, dgpi, dgpi_diff, &
+                                                            & MG_alphadot, MG_ISW, MG_lensing )
 
-                ISW = exptau * (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)
-				phidot = (State%CP%ModGravity%MG_ISW - 2._dl*MGDE_ISW)/2._dl
-
-                sigmadot = State%CP%ModGravity%sigmadot
+                ISW = exptau * ( MG_ISW - 2._dl*MGDE_ISW)
+				phidot = ( MG_ISW - 2._dl*MGDE_ISW)/2._dl
 
                 polter      = pig/10+9._dl/15*E(2)
                 polterdot   = 9._dl/15._dl*Edot(2) + 0.1_dl*pigdot
@@ -3198,7 +3186,7 @@
                 EV%OutputSources(1) = ISW&
                 & +visibility* (clxg/4.D0 + polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*opacity/16.D0 &
                 & -9.D0/16.D0*dopacity*polter/k2&
-                & + 21.D0/10.D0*State%CP%ModGravity%MG_alphadot + 3.D0/40.D0*qgdot/k &
+                & + 21.D0/10.D0 * MG_alphadot + 3.D0/40.D0*qgdot/k &
                 & +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
                 & +((-9.D0/160.D0*pig-27.D0/80.D0*E(2))/k**2*opacity+(11.D0/10.D0*sigma- &
                 & 3.D0/8.D0*EV%Kf(2)*E(3)+vb-9.D0/80.D0*EV%Kf(2)*octg+3.D0/40.D0*qg)/k-(- &
@@ -3224,10 +3212,9 @@
                         EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                         !We include the lensing factor of two here
                     else
-                        call State%CP%ModGravity%ComputeLensing( a )
                         !!! DEBUG!!! SPAM!!!
-                        write (*,*) "a = ", a, "MG_lensing = ", State%CP%ModGravity%MG_lensing
-                        EV%OutputSources(3) = -State%CP%ModGravity%MG_lensing*f_K(tau-State%tau_maxvis)/&
+                        !write (*,*) "a = ", a, "MG_lensing = ", State%CP%ModGravity%MG_lensing
+                        EV%OutputSources(3) = -MG_lensing*f_K(tau-State%tau_maxvis)/&
                                             & (f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
                     end if 
@@ -3274,25 +3261,17 @@
         ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
        !> MGCAMB MOD START
         if ( State%CP%ModGravity%DebugMGCAMB ) then
-            call State%CP%ModGravity%MGCAMB_dump_cache( a, k, etak, grhov_t, gpresv_t, &
-                                        & dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
+            call State%CP%ModGravity%MGCAMB_dump_cache( k, a, adotoa, Hdot, etak, grhov_t, gpresv_t, rhoDelta, &
+                                                        & dgrho, dgq, dgpi, pidot_sum, dgpi_w_sum, &
+                                                        & mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                                        & MG_ISW, MG_lensing, source1, source3, &
+                                                        & z, sigma, etadot, sigmadot )
         end if
         !< MGCAMB MOD END
 
-        if (associated(EV%OutputSources)) then
-            State%CP%ModGravity%source1 = EV%OutputSources(1)
-
-            if (size(EV%OutputSources) > 2) then
-                State%CP%ModGravity%source3 = EV%OutputSources(3)
-            else
-                State%CP%ModGravity%source3 = 0._dl
-            end if
-        
-        else
-            State%CP%ModGravity%source1 = 0._dl
-            State%CP%ModGravity%source3 = 0._dl
-        end if
     end if
+
+
 
     end subroutine derivs
 

@@ -28,48 +28,48 @@ module ModGravityInterface
         integer :: CDM_flag = 0
 
         ! 1. Background quantities
-        real(dl) :: Hdot
+        !real(dl) :: Hdot
         !real(dl) :: grhov_t  
         !real(dl) :: gpresv_t 
 
         ! 2. Perturbation quantities
-        real(dl) :: dgpidot
-        real(dl) :: rhoDelta  
-        real(dl) :: rhoDeltadot  
-        real(dl) :: rhoDeltac
-        real(dl) :: rhoDeltacdot 
+        !real(dl) :: dgpidot
+        !real(dl) :: rhoDelta  
+        !real(dl) :: rhoDeltadot  
+        !real(dl) :: rhoDeltac
+        !real(dl) :: rhoDeltacdot 
 
         ! 3. MG functions
-        real(dl) :: mu = 0.
-        real(dl) :: mudot = 0.
-        real(dl) :: gamma = 0.
-        real(dl) :: gammadot = 0.
-        real(dl) :: q = 0.
-        real(dl) :: qdot = 0.
-        real(dl) :: r = 0.
-        real(dl) :: rdot = 0.
-        real(dl) :: BigSigma = 0.
-        real(dl) :: BigSigmadot = 0.
-        real(dl) :: C_phi = 0.
-        real(dl) :: C_phidot = 0.
+        !real(dl) :: mu = 0.
+        !real(dl) :: mudot = 0.
+        !real(dl) :: gamma = 0.
+        !real(dl) :: gammadot = 0.
+        !real(dl) :: q = 0.
+        !real(dl) :: qdot = 0.
+        !real(dl) :: r = 0.
+        !real(dl) :: rdot = 0.
+        !real(dl) :: BigSigma = 0.
+        !real(dl) :: BigSigmadot = 0.
+        !real(dl) :: C_phi = 0.
+        !real(dl) :: C_phidot = 0.
 
         !> 4. Perturbations evolution variables
-        real(dl) :: z = 0. ! this z is not the redshift
-        real(dl) :: sigma = 0.
-        real(dl) :: sigmadot = 0.
-        real(dl) :: etadot = 0.
+        !real(dl) :: z = 0. ! this z is not the redshift
+        !real(dl) :: sigma = 0.
+        !real(dl) :: sigmadot = 0.
+        !real(dl) :: etadot = 0.
 
         !> 5. ISW and lensing realted quantities
-        real(dl) :: MG_alpha = 0.
-        real(dl) :: MG_alphadot = 0.
-        real(dl) :: MG_phi = 0.
-        real(dl) :: MG_phidot = 0.
-        real(dl) :: MG_psi = 0.
-        real(dl) :: MG_psidot = 0.
-        real(dl) :: MG_ISW = 0.
-        real(dl) :: MG_lensing = 0.
-        real(dl) :: source1 = 0.
-        real(dl) :: source3 = 0.
+        !real(dl) :: MG_alpha = 0.
+        !real(dl) :: MG_alphadot = 0.
+        !real(dl) :: MG_phi = 0.
+        !real(dl) :: MG_phidot = 0.
+        !real(dl) :: MG_psi = 0.
+        !real(dl) :: MG_psidot = 0.
+        !real(dl) :: MG_ISW = 0.
+        !real(dl) :: MG_lensing = 0.
+        !real(dl) :: source1 = 0.
+        !real(dl) :: source3 = 0.
 
         contains
 
@@ -77,18 +77,16 @@ module ModGravityInterface
         procedure(ComputeMGFunctionsInterface), deferred :: ComputeMGFunctions
         procedure(ComputesigmaInterface), deferred :: Computesigma
         procedure(ComputezInterface), deferred :: Computez
-        procedure(ComputeISWInterface), deferred :: ComputeISW
-        procedure(ComputeLensingInterface), deferred :: ComputeLensing
+        procedure(ComputeISWAndLensingInterface), deferred :: ComputeISWAndLensing
 
         ! other subroutines
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
+        procedure :: SetBackground => TModGravityModel_SetBackground
         procedure :: ReadParams => TModGravityModel_ReadParams
         ! TODO: after the code works, see if you need to keep this (although it's useful for debugging)
         procedure :: PrintAttributes => TModGravityModel_PrintAttributes
-        ! TODO: do we need these?
-        procedure :: ResetCache => TModGravityModel_ResetCache
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
         procedure :: MGCAMB_dump_cache
@@ -96,63 +94,73 @@ module ModGravityInterface
     end type TModGravityModel
 
     ! these functions are actually defined within the subtypes
+    ! TODO: all the MG variables must be passed here; those not used will need
+    ! to be manually set to zero in the child class, for thread safety
     abstract interface
-        subroutine ComputeMGFunctionsInterface(this, a, k2, adotoa )
+        subroutine ComputeMGFunctionsInterface(this, a, k2, adotoa, &
+                                                & mu, mudot, gamma, gammadot, &
+                                                & m, mdot, beta, betadot )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
             real(dl), intent(in) :: k2
             real(dl), intent(in) :: adotoa
+
+            ! MG functions to set
+            real(dl), intent(out) :: mu, mudot, gamma, gammadot
+            real(dl), intent(out) :: m, mdot, beta, betadot
         end subroutine ComputeMGFunctionsInterface
 
-        subroutine ComputesigmaInterface( this, a, k, k2, etak, adotoa, dgpi )
+        subroutine ComputesigmaInterface( this,a, k, k2, etak, adotoa, dgpi, &
+                                        & mu, gamma, rhoDelta, sigma, MG_alpha  )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
             real(dl), intent(in) :: k, k2 ! k^2
-            real(dl), intent(in) :: etak
-            real(dl), intent(in) :: adotoa
-            real(dl), intent(in) :: dgpi
+            real(dl), intent(in) :: etak, adotoa, dgpi
+            real(dl), intent(in) :: mu, gamma, rhoDelta
+            real(dl), intent(out) :: sigma, MG_alpha
         end subroutine ComputesigmaInterface
 
-        subroutine ComputezInterface(this, a, k, k2, adotoa, &
+        subroutine ComputezInterface(this, a, k, k2, adotoa, Hdot, rhoDelta, &
                                     & grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t, &
-                                    & grhov_t, gpresv_t, &
-                                    & dgq, dgpi, dgpi_w_sum, pidot_sum ) 
+                                    & grhov_t, gpresv_t, dgq, dgpi, dgpi_w_sum, pidot_sum, &
+                                    & mu, gamma, mudot, gammadot, sigma, MG_alpha, &
+                                    & MG_phi, MG_psi, MG_phidot, z, sigmadot, etadot ) 
 
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
             real(dl), intent(in) :: a
             real(dl), intent(in) :: k, k2
-            real(dl), intent(in) :: adotoa
+            real(dl), intent(in) :: adotoa, Hdot, rhoDelta
             real(dl), intent(in) :: grhoc_t, grhob_t, grhor_t, grhog_t, grhonu_t, gpresnu_t
             real(dl), intent(in) :: grhov_t, gpresv_t
             real(dl), intent(in) :: dgq, dgpi, dgpi_w_sum, pidot_sum 
+            real(dl), intent(in) :: mu, gamma, mudot, gammadot, sigma, MG_alpha
+            real(dl), intent(out) :: MG_phi, MG_psi, MG_phidot, z, sigmadot, etadot
 
         end subroutine ComputezInterface
 
-        subroutine ComputeISWInterface( this, a, adotoa, k, k2, & 
-                                      & grho, gpres, pidot_sum, dgq, dgpi, dgpi_diff )
+        subroutine ComputeISWAndLensingInterface( this, k, k2, a, adotoa, Hdot, &
+                                                & rhoDelta, mu, mudot, grho, gpres, pidot_sum, &
+                                                & z, MG_phi, MG_psi, MG_alpha, MG_phidot, dgq, dgpi, dgpi_diff, &
+                                                & MG_alphadot, MG_ISW, MG_lensing )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
-            real(dl), intent(in) :: a
-            real(dl), intent(in) :: adotoa
-            real(dl), intent(in) :: k, k2 
+            real(dl), intent(in) :: k, k2
+            real(dl), intent(in) :: a, adotoa, Hdot
+            real(dl), intent(in) :: rhoDelta, mu, mudot 
             real(dl), intent(in) :: grho, gpres
             real(dl), intent(in) :: pidot_sum
+            real(dl), intent(in) :: z, MG_phi, MG_psi, MG_alpha, MG_phidot
             real(dl), intent(in) :: dgq, dgpi, dgpi_diff
-        end subroutine ComputeISWInterface
+            real(dl), intent(out) :: MG_alphadot, MG_ISW, MG_lensing
 
-        subroutine ComputeLensingInterface(this, a)
-            use Precision
-            import :: TModGravityModel
-            class(TModGravityModel) :: this
-            real(dl), intent(in) :: a
-        end subroutine ComputeLensingInterface
+        end subroutine ComputeISWAndLensingInterface
 
     end interface
 
@@ -177,6 +185,25 @@ module ModGravityInterface
     ! call c_f_pointer(cptr, PType)
     ! P => PType
     ! end subroutine TModGravityModel_SelfPointer
+
+    subroutine TModGravityModel_SetBackground( this, adotoa, k, grho, gpres, &
+                                             & dgrho, dgrhoc, dgq, dgqc, &
+                                             & Hdot, rhoDelta, rhoDeltac )
+
+        class(TModGravityModel) :: this
+        real(dl), intent(in) :: adotoa
+        real(dl), intent(in) :: k
+        real(dl), intent(in) :: grho, gpres
+        real(dl), intent(in) :: dgrho, dgrhoc
+        real(dl), intent(in) :: dgq, dgqc
+        real(dl), intent(out) :: Hdot, rhoDelta, rhoDeltac
+
+        Hdot       = adotoa**2 - 0.5d0 * ( grho + gpres )
+        rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
+        rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
+
+    end subroutine TModGravityModel_SetBackground
+
 
     subroutine TModGravityModel_ReadParams( this, Ini )
 
@@ -216,51 +243,6 @@ module ModGravityInterface
     end subroutine TModGravityModel_PrintAttributes
 
 
-
-    ! TODO: this should be put somewhere more sensible, for now it's here
-    !> Subroutine that sets the mgcamb_cache to zero
-    subroutine TModGravityModel_ResetCache( this )
-
-        class(TModGravityModel) :: this
-
-        ! 1. Background quantities
-        !this%grhov_t    = 0._dl
-        !this%gpresv_t   = 0._dl
-
-        ! 2. Perturbation quantities
-        this%dgpidot    = 0._dl
-        this%rhoDelta   = 0._dl
-        this%rhoDeltadot= 0._dl
-
-        ! 3. MG functions
-        this%mu         = 0._dl
-        this%mudot      = 0._dl
-        this%gamma      = 0._dl
-        this%gammadot   = 0._dl
-        this%q          = 0._dl
-        this%qdot       = 0._dl
-        this%r          = 0._dl
-        this%rdot       = 0._dl
-
-        !> 4. Perturbations evolution variables
-        this%z          = 0._dl
-        this%sigma      = 0._dl
-        this%sigmadot   = 0._dl
-        this%etadot     = 0._dl
-
-        !> 5. ISW and lensing realted quantities
-        this%MG_alpha   = 0._dl
-        this%MG_alphadot= 0._dl
-        this%MG_phi     = 0._dl
-        this%MG_phidot  = 0._dl
-        this%MG_psi     = 0._dl
-        this%MG_psidot  = 0._dl
-        this%MG_ISW     = 0._dl
-        this%MG_lensing = 0._dl
-        this%source1    = 0._dl
-        this%source3    = 0._dl
-
-    end subroutine
 
         ! ---------------------------------------------------------------------------------------------
     !> Subroutine that opens the MGCAMB cache files (for Debug)
@@ -309,33 +291,39 @@ module ModGravityInterface
 
     ! ---------------------------------------------------------------------------------------------
     !> Subroutine that prints the MGCAMB cache on a file
-    subroutine MGCAMB_dump_cache( this, a, k, etak, grhov_t, gpresv_t, dgrho, dgq, dgpi, adotoa, pidot_sum, dgpi_w_sum )
+    subroutine MGCAMB_dump_cache( this, k, a, adotoa, Hdot, etak, grhov_t, gpresv_t, rhoDelta, &
+                                & dgrho, dgq, dgpi, pidot_sum, dgpi_w_sum, &
+                                & mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                & MG_ISW, MG_lensing, source1, source3, &
+                                & z, sigma, etadot, sigmadot )
 
         class(TModGravityModel) :: this
-        real(dl), intent(in) :: a   !< scale factor
         real(dl), intent(in) :: k
-        real(dl), intent(in) :: etak
-        real(dl), intent(in) :: grhov_t, gpresv_t
+        real(dl), intent(in) :: a
+        real(dl), intent(in) :: adotoa, Hdot, etak
+        real(dl), intent(in) :: grhov_t, gpresv_t, rhoDelta
         real(dl), intent(in) :: dgrho, dgq, dgpi
-        real(dl), intent(in) :: adotoa, pidot_sum, dgpi_w_sum
+        real(dl), intent(in) :: pidot_sum, dgpi_w_sum
+        real(dl), intent(in) :: mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot
+        real(dl), intent(in) :: MG_ISW, MG_lensing, source1, source3
+        real(dl), intent(in) :: z, sigma, etadot, sigmadot
+
         character(*), parameter :: cache_output_format = 'e18.8'
 
         ! 1. Write the sources
-        write(111,'(14'//cache_output_format//')') k, a, this%MG_ISW, this%MG_Lensing, this%source1, this%source3
+        write(111,'(14'//cache_output_format//')') k, a, MG_ISW, MG_Lensing, source1, source3
 
         ! 2. Write the MG functions and the potentials
-        write(222,'(14'//cache_output_format//')') k, a, this%mu, this%gamma, this%q, this%r, &
-                                                & this%MG_phi, this%MG_psi, this%MG_phidot, this%MG_psidot
+        write(222,'(14'//cache_output_format//')') k, a, mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot
 
         ! 3. Write the Einstein equations solutions
-        write(333,'(14'//cache_output_format//')') k, a, etak, this%z, this%sigma, this%etadot, this%sigmadot
+        write(333,'(14'//cache_output_format//')') k, a, etak, z, sigma, etadot, sigmadot
 
         ! 4. Write the Perturbations Solutions
-        write(444,'(14'//cache_output_format//')') k, a, dgrho, dgq, this%rhoDelta,&
-                                                    & dgpi, pidot_sum, dgpi_w_sum
+        write(444,'(14'//cache_output_format//')') k, a, dgrho, dgq, rhoDelta, dgpi, pidot_sum, dgpi_w_sum
 
         !5. Write the background
-        write(555,'(14'//cache_output_format//')') k, a, adotoa, this%Hdot, grhov_t,  gpresv_t
+        write(555,'(14'//cache_output_format//')') k, a, adotoa, Hdot, grhov_t,  gpresv_t
 
     end subroutine MGCAMB_dump_cache
 
