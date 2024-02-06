@@ -148,7 +148,7 @@ module ModGravityInterface
         subroutine ComputeISWAndLensingInterface( this, k, k2, a, adotoa, Hdot, &
                                                 & rhoDelta, mu, mudot, grho, gpres, pidot_sum, &
                                                 & z, MG_phi, MG_psi, MG_alpha, MG_phidot, dgq, dgpi, dgpi_diff, &
-                                                & MG_alphadot, MG_ISW, MG_lensing )
+                                                & MG_alphadot, MG_psidot, MG_ISW, MG_lensing )
             use Precision
             import :: TModGravityModel
             class(TModGravityModel) :: this
@@ -159,7 +159,7 @@ module ModGravityInterface
             real(dl), intent(in) :: pidot_sum
             real(dl), intent(in) :: z, MG_phi, MG_psi, MG_alpha, MG_phidot
             real(dl), intent(in) :: dgq, dgpi, dgpi_diff
-            real(dl), intent(out) :: MG_alphadot, MG_ISW, MG_lensing
+            real(dl), intent(out) :: MG_alphadot, MG_psidot, MG_ISW, MG_lensing
 
         end subroutine ComputeISWAndLensingInterface
 

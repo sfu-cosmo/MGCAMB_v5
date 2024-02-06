@@ -3189,12 +3189,12 @@
 
             else
 
-                ! compute MG ISW and lensing: set variables MG_alphadot, MG_ISW, MG_lensing
+                ! compute MG ISW and lensing: set variables MG_alphadot, MG_psidot, MG_ISW, MG_lensing
                 call State%CP%ModGravity%ComputeISWAndLensing( k, k2, a, adotoa, Hdot, &
                                                             & rhoDelta, mu, mudot, grho, gpres, pidot_sum, &
                                                             & z, MG_phi, MG_psi, MG_alpha, MG_phidot, &
                                                             & dgq, dgpi, dgpi_diff, &
-                                                            & MG_alphadot, MG_ISW, MG_lensing )
+                                                            & MG_alphadot, MG_psidot, MG_ISW, MG_lensing )
 
                 ISW = exptau * ( MG_ISW - 2._dl*MGDE_ISW)
 				phidot = ( MG_ISW - 2._dl*MGDE_ISW)/2._dl

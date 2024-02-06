@@ -349,7 +349,7 @@ module MGCAMB
                                                             & grho, gpres, pidot_sum, &
                                                             & z, MG_phi, MG_psi, MG_alpha, MG_phidot, & 
                                                             & dgq, dgpi, dgpi_diff, &
-                                                            & MG_alphadot, MG_ISW, MG_lensing )
+                                                            & MG_alphadot, MG_psidot, MG_ISW, MG_lensing )
 
         class(TMuGammaParameterization) :: this
         real(dl), intent(in) :: k, k2  ! k^2
@@ -360,10 +360,10 @@ module MGCAMB
         real(dl), intent(in) :: z, MG_phi, MG_psi, MG_alpha, MG_phidot
         real(dl), intent(in) :: dgq, dgpi, dgpi_diff
 
-        real(dl), intent(out) :: MG_alphadot, MG_ISW, MG_lensing
+        real(dl), intent(out) :: MG_alphadot, MG_psidot, MG_ISW, MG_lensing
 
         !local variables
-        real(dl) :: term0, dgpidot, rhoDeltadot, MG_psidot
+        real(dl) :: term0, dgpidot, rhoDeltadot
 
         term0 = k2 + 3._dl* ( adotoa**2._dl - Hdot)
 
