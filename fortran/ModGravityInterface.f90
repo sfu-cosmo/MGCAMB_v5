@@ -83,12 +83,13 @@ module ModGravityInterface
         procedure :: Init => TModGravityModel_Init
         !procedure, nopass :: PythonClass => TModGravityModel_PythonClass
         !procedure, nopass :: SelfPointer => TModGravityModel_SelfPointer
-        procedure :: SetBackground => TModGravityModel_SetBackground
+        procedure :: MoreBackground => TModGravityModel_MoreBackground
         procedure :: ReadParams => TModGravityModel_ReadParams
         ! TODO: after the code works, see if you need to keep this (although it's useful for debugging)
         procedure :: PrintAttributes => TModGravityModel_PrintAttributes
         procedure :: MGCAMB_open_cache_files
         procedure :: MGCAMB_close_cache_files
+        procedure :: MGCAMB_initialise_vars
         procedure :: MGCAMB_dump_cache
 
     end type TModGravityModel
@@ -186,7 +187,7 @@ module ModGravityInterface
     ! P => PType
     ! end subroutine TModGravityModel_SelfPointer
 
-    subroutine TModGravityModel_SetBackground( this, adotoa, k, grho, gpres, &
+    subroutine TModGravityModel_MoreBackground( this, adotoa, k, grho, gpres, &
                                              & dgrho, dgrhoc, dgq, dgqc, &
                                              & Hdot, rhoDelta, rhoDeltac )
 
@@ -202,7 +203,7 @@ module ModGravityInterface
         rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
         rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
 
-    end subroutine TModGravityModel_SetBackground
+    end subroutine TModGravityModel_MoreBackground
 
 
     subroutine TModGravityModel_ReadParams( this, Ini )
@@ -288,12 +289,51 @@ module ModGravityInterface
 
     end subroutine MGCAMB_close_cache_files
 
+    ! ---------------------------------------------------------------------------------------------
+    !> Subroutine that initialises those MGCAMB cache variables that are not used by standard CAMB to zero
+    subroutine MGCAMB_initialise_vars( this, Hdot, rhoDelta, rhoDeltac, &
+                                     & mu, mudot, gamma, gammadot, MG_Q, MG_R, &
+                                     & z, MG_alpha, MG_alphadot, &
+                                     & MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                     & MG_ISW, MG_lensing, source1, source3 )
+
+        class(TModGravityModel) :: this
+        real(dl), intent(out) :: Hdot, rhoDelta, rhoDeltac
+        real(dl), intent(out) :: mu, mudot, gamma, gammadot, MG_Q, MG_R
+        real(dl), intent(out) :: z, MG_alpha, MG_alphadot
+        real(dl), intent(out) :: MG_phi, MG_psi, MG_phidot, MG_psidot
+        real(dl), intent(out) :: MG_ISW, MG_lensing, source1, source3
+
+         ! 1. Background quantities
+        Hdot        = 0._dl
+        rhoDelta    = 0._dl
+        rhoDeltac   = 0._dl
+        mu          = 0._dl
+        mudot       = 0._dl
+        gamma       = 0._dl
+        gammadot    = 0._dl
+        MG_Q           = 0._dl
+        MG_R           = 0._dl
+        z           = 0._dl
+        MG_alpha    = 0._dl
+        MG_alphadot = 0._dl
+        MG_phi      = 0._dl
+        MG_psi      = 0._dl
+        MG_phidot   = 0._dl
+        MG_psidot   = 0._dl
+        MG_ISW      = 0._dl
+        MG_lensing  = 0._dl
+        source1     = 0._dl
+        source3     = 0._dl
+
+    end subroutine MGCAMB_initialise_vars
+
 
     ! ---------------------------------------------------------------------------------------------
     !> Subroutine that prints the MGCAMB cache on a file
     subroutine MGCAMB_dump_cache( this, k, a, adotoa, Hdot, etak, grhov_t, gpresv_t, rhoDelta, &
                                 & dgrho, dgq, dgpi, pidot_sum, dgpi_w_sum, &
-                                & mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                & mu, gamma, MG_Q, MG_R, MG_phi, MG_psi, MG_phidot, MG_psidot, &
                                 & MG_ISW, MG_lensing, source1, source3, &
                                 & z, sigma, etadot, sigmadot )
 
@@ -304,7 +344,7 @@ module ModGravityInterface
         real(dl), intent(in) :: grhov_t, gpresv_t, rhoDelta
         real(dl), intent(in) :: dgrho, dgq, dgpi
         real(dl), intent(in) :: pidot_sum, dgpi_w_sum
-        real(dl), intent(in) :: mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot
+        real(dl), intent(in) :: mu, gamma, MG_Q, MG_R, MG_phi, MG_psi, MG_phidot, MG_psidot
         real(dl), intent(in) :: MG_ISW, MG_lensing, source1, source3
         real(dl), intent(in) :: z, sigma, etadot, sigmadot
 
@@ -314,7 +354,7 @@ module ModGravityInterface
         write(111,'(14'//cache_output_format//')') k, a, MG_ISW, MG_Lensing, source1, source3
 
         ! 2. Write the MG functions and the potentials
-        write(222,'(14'//cache_output_format//')') k, a, mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot
+        write(222,'(14'//cache_output_format//')') k, a, mu, gamma, MG_Q, MG_R, MG_phi, MG_psi, MG_phidot, MG_psidot
 
         ! 3. Write the Einstein equations solutions
         write(333,'(14'//cache_output_format//')') k, a, etak, z, sigma, etadot, sigmadot

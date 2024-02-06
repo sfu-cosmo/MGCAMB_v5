@@ -2247,7 +2247,7 @@
     real(dl) m, mdot, beta, betadot
     real(dl) mu, mudot, gamma, gammadot
     real(dl) psiN, phiN 
-    real(dl) m2, beta2, r
+    real(dl) m2, beta2, MG_Q, MG_R
     real(dl) MG_alpha, MG_alphadot
     real(dl) MG_phi, MG_psi, MG_phidot, MG_psidot
     real(dl) muall, mucdm 
@@ -2260,6 +2260,15 @@
     real(dl) :: dgpi_w_sum
     real(dl) :: etadot
     !< MGCAMB MOD END
+
+    !< MGCAMB MOD START
+    ! set MGCAMB variables that are not part of standard CAMB to 0
+    call State%CP%ModGravity%MGCAMB_initialise_vars( Hdot, rhoDelta, rhoDeltac, &
+                                                    & mu, mudot, gamma, gammadot, MG_Q, MG_R, &
+                                                    & z, MG_alpha, MG_alphadot, &
+                                                    & MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                                    & MG_ISW, MG_lensing, source1, source3 )
+    !> MGCAMB MOD END
 
     k=EV%k_buf
     k2=EV%k2_buf
@@ -2428,11 +2437,19 @@
     end if
     !< MGCAMB MOD END
 
+    ! DS: this used to be only inside the if (tempmodel/=0) block, but
+    ! (a) I don't see why that should be, as we're missing the GR limit
+    ! (b) there's numerical noise in the early Universe otherwise
+    gpres = (grhog_t+grhor_t)/3.d0 + gpresv_t + gpres_nu
+    ! set Hdot, rhoDelta, rhoDeltac
+    call State%CP%ModGravity%MoreBackground( adotoa, k, grho, gpres, dgrho, dgrhoc, dgq, dgqc, &
+                                            & Hdot, rhoDelta, rhoDeltac )
+
     !> MGCAMB MOD START: computing Z, sigma in MG
     if ( tempmodel /= 0 ) then
 
+        ! TODO: update all these comments
         ! 1. Filling the cache
-        gpres = (grhog_t+grhor_t)/3.d0 + gpresv_t + gpres_nu
         dgpi                = 0.d0
         dgpi_w_sum          = 0.d0
 
@@ -2445,10 +2462,6 @@
 
         dgpi = dgpi + grhor_t*pir + grhog_t*pig
         dgpi_w_sum = dgpi_w_sum + 3.d0*(grhor_t*pir+grhog_t*pig)
-
-        ! set Hdot, rhoDelta, rhoDeltac
-        call State%CP%ModGravity%SetBackground( adotoa, k, grho, gpres, dgrho, dgrhoc, dgq, dgqc, &
-                                                & Hdot, rhoDelta, rhoDeltac )
 
         ! 2. Computing the MG functions
         ! TODO: this must be adjusted for an arbitrary parameterisation. Other variables will have to be added here
@@ -2609,6 +2622,12 @@
             sigma=(z+1.5_dl*dgq/k2)/EV%Kf(1)
             ayprime(ix_etak)=0.5_dl*dgq + State%curv*z
         end if 
+
+        !> MGCAMB MOD START
+        ! set etadot in early Universe: ayprime(ix_etak) is k*etadot 
+        etadot = ayprime(ix_etak)/k
+        !> MGCAMB MOD END
+
     end if 
     !< MGCAMB MOD END
 
@@ -2993,10 +3012,12 @@
             E = ay(EV%polind+2:EV%polind+3)
             Edot = ayprime(EV%polind+2:EV%polind+3)
         end if
+
         if (EV%no_nu_multpoles) then
             pirdot=0
             qrdot = -4*dz/3
         end if
+
         if (EV%no_phot_multpoles) then
             pigdot=0
             octg=0
@@ -3158,6 +3179,14 @@
 
                 EV%OutputSources(1) = ISW + doppler + monopole_source + quadrupole_source
 
+                ! set MG functions to GR value
+                MG_ISW     = 2._dl*phidot
+                MG_lensing = 2._dl*phi
+                mu = 1._dl
+                gamma = 1._dl
+                MG_Q = 1._dl
+                MG_R = 1._dl
+
             else
 
                 ! compute MG ISW and lensing: set variables MG_alphadot, MG_ISW, MG_lensing
@@ -3263,7 +3292,7 @@
         if ( State%CP%ModGravity%DebugMGCAMB ) then
             call State%CP%ModGravity%MGCAMB_dump_cache( k, a, adotoa, Hdot, etak, grhov_t, gpresv_t, rhoDelta, &
                                                         & dgrho, dgq, dgpi, pidot_sum, dgpi_w_sum, &
-                                                        & mu, gamma, q, r, MG_phi, MG_psi, MG_phidot, MG_psidot, &
+                                                        & mu, gamma, MG_Q, MG_R, MG_phi, MG_psi, MG_phidot, MG_psidot, &
                                                         & MG_ISW, MG_lensing, source1, source3, &
                                                         & z, sigma, etadot, sigmadot )
         end if
