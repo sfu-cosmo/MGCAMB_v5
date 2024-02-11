@@ -3200,16 +3200,6 @@
                 polter      = pig/10+9._dl/15*E(2)
                 polterdot   = 9._dl/15._dl*Edot(2) + 0.1_dl*pigdot
 
-                ! old version
-                !EV%OutputSources(1) = ISW+&
-                !    visibility* (clxg/4.D0 +polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*&
-                !    opacity/16.D0-9.D0/16.D0*dopacity* polter/k2&
-                !    + 2.1d0*State%CP%ModGravity%MG_alphadot + 3.D0/40.D0 *qgdot/k &!+21.D0/10.D0*dgpi/k2&
-                !    +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
-                !    + (State%CP%ModGravity%MG_alpha+vb/k+30.0d0/8.0d0 *polterdot/k2)*dvisibility&
-                !    + ddvisibility*30.0d0/16.0d0*polter/k2
-
-                ! new version
                 EV%OutputSources(1) = ISW&
                     & +visibility* (clxg/4.D0 + polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*opacity/16.D0 &
                     & -9.D0/16.D0*dopacity*polter/k2&
