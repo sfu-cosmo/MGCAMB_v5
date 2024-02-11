@@ -2258,14 +2258,14 @@
 
     integer :: tempmodel ! TODO: remove
     real(dl) :: dgpi_w_sum
-    real(dl) :: etadot
+    real(dl) :: etadot ! TODO: is this truly an MG variable only?
     !< MGCAMB MOD END
 
     !< MGCAMB MOD START
     ! set MGCAMB variables that are not part of standard CAMB to 0
     call State%CP%ModGravity%MGCAMB_initialise_vars( Hdot, rhoDelta, rhoDeltac, &
                                                     & mu, mudot, gamma, gammadot, MG_Q, MG_R, &
-                                                    & z, MG_alpha, MG_alphadot, &
+                                                    & z, MG_alpha, MG_alphadot, dgpi_w_sum, &
                                                     & MG_phi, MG_psi, MG_phidot, MG_psidot, &
                                                     & MG_ISW, MG_lensing, source1, source3 )
     !> MGCAMB MOD END
@@ -2322,6 +2322,7 @@
 
     !> MGCAMB MOD START: switch MG on according to the model (in model 7 GRtrans is replaced by a_star)
     ! TODO: not needed
+    ! TODO: make a variable called DE_pert and initialise it once and for all
     tempmodel = 0
     if ( State%CP%ModGravity%MG_flag /= 0 .and. a .ge. State%CP%ModGravity%GRtrans ) then
         tempmodel = State%CP%ModGravity%MG_flag
@@ -2349,18 +2350,15 @@
     grho = grho_matter+grhor_t+grhog_t+grhov_t
     gpres_noDE = gpres_nu + (grhor_t + grhog_t)/3
 
-    !> MGCAMB MOD START: MGCAMB works only with flat models
+    ! MGCAMB only works with flat models. A check within CAMBData_set_Params
+    ! ensures the programme does not proceed if MG is called with curvature
+    ! TODO: extra tests that MG+curved is not possible, even within python wrapper
     if (State%flat) then
         adotoa=sqrt(grho/3)
         cothxor=1._dl/tau
-    else if ( State%CP%ModGravity%MG_flag == 0 ) then
+    else
         adotoa=sqrt((grho+State%grhok)/3._dl)
         cothxor=1._dl/State%tanfunc(tau/State%curvature_radius)/State%curvature_radius
-    else
-        ! SPAM!!! DEBUG!!!! TODO
-        write(*,*) "This check should have really have happened elsewhere"
-
-        Stop " MGCAMB works only for flat universe at the moment. Please check www.sfu.ca/~aha25/MGCAMB.html for updates."
     end if
     !< MGCAMB MOD END
 
@@ -3045,8 +3043,8 @@
         end if
 
 		!>MGCAMB MOD START
-            if ( (.not. EV%is_cosmological_constant) .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
-        & (State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) ) then
+        if ( (.not. EV%is_cosmological_constant) .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
+            & (State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) ) then
             dgrho_de=0
             dgq_de=0
         end if
@@ -3213,14 +3211,14 @@
 
                 ! new version
                 EV%OutputSources(1) = ISW&
-                & +visibility* (clxg/4.D0 + polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*opacity/16.D0 &
-                & -9.D0/16.D0*dopacity*polter/k2&
-                & + 21.D0/10.D0 * MG_alphadot + 3.D0/40.D0*qgdot/k &
-                & +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
-                & +((-9.D0/160.D0*pig-27.D0/80.D0*E(2))/k**2*opacity+(11.D0/10.D0*sigma- &
-                & 3.D0/8.D0*EV%Kf(2)*E(3)+vb-9.D0/80.D0*EV%Kf(2)*octg+3.D0/40.D0*qg)/k-(- &
-                & 180.D0*Edot(2)-30.D0*pigdot)/k**2/160.D0)*dvisibility&
-                & +(3.D0/16.D0*ddvisibility*pig+9.D0/8.D0*ddvisibility*E(2))/k**2
+                    & +visibility* (clxg/4.D0 + polter/1.6d0 + vbdot/k -9.D0*(polterdot)/k2*opacity/16.D0 &
+                    & -9.D0/16.D0*dopacity*polter/k2&
+                    & + 21.D0/10.D0 * MG_alphadot + 3.D0/40.D0*qgdot/k &
+                    & +(-3.D0/8.D0*EV%Kf(2)*Edot(3) - 9.D0/80.D0*EV%Kf(2)*octgdot)/k)&
+                    & +((-9.D0/160.D0*pig-27.D0/80.D0*E(2))/k**2*opacity+(11.D0/10.D0*sigma- &
+                    & 3.D0/8.D0*EV%Kf(2)*E(3)+vb-9.D0/80.D0*EV%Kf(2)*octg+3.D0/40.D0*qg)/k-(- &
+                    & 180.D0*Edot(2)-30.D0*pigdot)/k**2/160.D0)*dvisibility&
+                    & +(3.D0/16.D0*ddvisibility*pig+9.D0/8.D0*ddvisibility*E(2))/k**2
 
             end if
             !< MGCAMB MOD END
@@ -3238,13 +3236,10 @@
                 if (tau>State%tau_maxvis .and. tau0-tau > 0.1_dl) then
                     !> MGCAMB MOD START
                     if ( tempmodel == 0 ) then
-                        EV%OutputSources(3) = -2*phi*f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
+                        EV%OutputSources(3) = -2*phi * f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                         !We include the lensing factor of two here
                     else
-                        !!! DEBUG!!! SPAM!!!
-                        !write (*,*) "a = ", a, "MG_lensing = ", State%CP%ModGravity%MG_lensing
-                        EV%OutputSources(3) = -MG_lensing*f_K(tau-State%tau_maxvis)/&
-                                            & (f_K(tau0-State%tau_maxvis)*ang_dist)
+                        EV%OutputSources(3) = -MG_lensing * f_K(tau-State%tau_maxvis)/(f_K(tau0-State%tau_maxvis)*ang_dist)
                     !< MGCAMB MOD END
                     end if 
                 end if
@@ -3261,6 +3256,7 @@
                     opacity, dopacity, ddopacity, visibility, dvisibility, ddvisibility, exptau)
             end if
 
+            ! TODO: do we need more DE types here?
             if (associated(EV%CustomSources)) then
                 select type(DE=>State%CP%DarkEnergy)
                 class is (TDarkEnergyEqnOfState)
@@ -3290,6 +3286,13 @@
         ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
        !> MGCAMB MOD START
         if ( State%CP%ModGravity%DebugMGCAMB ) then
+            if (associated(EV%OutputSources)) then
+                source1 = EV%OutputSources(1)
+                if (size(EV%OutputSources) > 2) then
+                    source3 = EV%OutputSources(3)
+                end if
+            end if
+
             call State%CP%ModGravity%MGCAMB_dump_cache( k, a, adotoa, Hdot, etak, grhov_t, gpresv_t, rhoDelta, &
                                                         & dgrho, dgq, dgpi, pidot_sum, dgpi_w_sum, &
                                                         & mu, gamma, MG_Q, MG_R, MG_phi, MG_psi, MG_phidot, MG_psidot, &
