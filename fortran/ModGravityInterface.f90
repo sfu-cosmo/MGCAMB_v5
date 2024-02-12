@@ -293,14 +293,14 @@ module ModGravityInterface
     !> Subroutine that initialises those MGCAMB cache variables that are not used by standard CAMB to zero
     subroutine MGCAMB_initialise_vars( this, Hdot, rhoDelta, rhoDeltac, &
                                      & mu, mudot, gamma, gammadot, MG_Q, MG_R, &
-                                     & z, MG_alpha, MG_alphadot, &
+                                     & z, MG_alpha, MG_alphadot, dgpi_w_sum, &
                                      & MG_phi, MG_psi, MG_phidot, MG_psidot, &
                                      & MG_ISW, MG_lensing, source1, source3 )
 
         class(TModGravityModel) :: this
         real(dl), intent(out) :: Hdot, rhoDelta, rhoDeltac
         real(dl), intent(out) :: mu, mudot, gamma, gammadot, MG_Q, MG_R
-        real(dl), intent(out) :: z, MG_alpha, MG_alphadot
+        real(dl), intent(out) :: z, MG_alpha, MG_alphadot, dgpi_w_sum
         real(dl), intent(out) :: MG_phi, MG_psi, MG_phidot, MG_psidot
         real(dl), intent(out) :: MG_ISW, MG_lensing, source1, source3
 
@@ -312,11 +312,12 @@ module ModGravityInterface
         mudot       = 0._dl
         gamma       = 0._dl
         gammadot    = 0._dl
-        MG_Q           = 0._dl
-        MG_R           = 0._dl
+        MG_Q        = 0._dl
+        MG_R        = 0._dl
         z           = 0._dl
         MG_alpha    = 0._dl
         MG_alphadot = 0._dl
+        dgpi_w_sum  = 0._dl
         MG_phi      = 0._dl
         MG_psi      = 0._dl
         MG_phidot   = 0._dl
