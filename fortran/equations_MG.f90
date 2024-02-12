@@ -2443,23 +2443,25 @@
     call State%CP%ModGravity%MoreBackground( adotoa, k, grho, gpres, dgrho, dgrhoc, dgq, dgqc, &
                                             & Hdot, rhoDelta, rhoDeltac )
 
+    ! Massive neutrinos
+    dgpi                = 0.d0
+    dgpi_w_sum          = 0.d0
+
+    ! compatibility with massive neutrinos
+    if (State%CP%Num_Nu_Massive /= 0) then
+        !> ayprime is not used to compute dgpi so it's safe to use this here
+        ! MassiveNuVarsOut(EV,y,yprime,a,grho,gpres,dgrho,dgq,dgpi, gdpi_diff,pidot_sum,clxnu_all)
+        call MassiveNuVarsOut(EV,ay,ayprime,a,adotoa, dgpi=dgpi, dgpi_w_sum=dgpi_w_sum)
+    end if
+
+    dgpi = dgpi + grhor_t*pir + grhog_t*pig
+    dgpi_w_sum = dgpi_w_sum + 3.d0*(grhor_t*pir+grhog_t*pig)
+
+
     !> MGCAMB MOD START: computing Z, sigma in MG
     if ( tempmodel /= 0 ) then
 
         ! TODO: update all these comments
-        ! 1. Filling the cache
-        dgpi                = 0.d0
-        dgpi_w_sum          = 0.d0
-
-        ! compatibility with massive neutrinos
-        if (State%CP%Num_Nu_Massive /= 0) then
-            !> ayprime is not used to compute dgpi so it's safe to use this here
-            ! MassiveNuVarsOut(EV,y,yprime,a,grho,gpres,dgrho,dgq,dgpi, gdpi_diff,pidot_sum,clxnu_all)
-            call MassiveNuVarsOut(EV,ay,ayprime,a,adotoa, dgpi=dgpi, dgpi_w_sum=dgpi_w_sum)
-        end if
-
-        dgpi = dgpi + grhor_t*pir + grhog_t*pig
-        dgpi_w_sum = dgpi_w_sum + 3.d0*(grhor_t*pir+grhog_t*pig)
 
         ! 2. Computing the MG functions
         ! TODO: this must be adjusted for an arbitrary parameterisation. Other variables will have to be added here
