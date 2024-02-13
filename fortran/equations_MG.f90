@@ -3070,20 +3070,19 @@
 
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
                 State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
-                gpres, w_dark_energy_t, State%grhok, adotoa, &
-                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)           
+                                gpres, w_dark_energy_t, State%grhok, adotoa, &
+                                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)           
         else
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa
         endif
 
         ! ISW effect
-        ! TODO: this is about DE: does it make sense to keep here?
         ! TODO: camb seems to have its own variable for MGDE_pert: check this is true and reinstate mgcamb checks on DE. CLATOS
 		if ( State%CP%ModGravity%MG_flag /= 0 .and. (.not. EV%is_cosmological_constant) .and. State%CP%ModGravity%MGDE_pert) then
 
 			MGDE_ISW =  State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
-						gpres, w_dark_energy_t, State%grhok, adotoa, &
-						1.d0, k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
+                                        gpres, w_dark_energy_t, State%grhok, adotoa, &
+                                        EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)
         else
             MGDE_ISW = 0._dl
 		end if
