@@ -3045,7 +3045,7 @@
         end if
 
 		!>MGCAMB MOD START
-        if ( (.not. EV%is_cosmological_constant) .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
+        if ( EV%is_cosmological_constant .and. ( State%CP%ModGravity%MG_flag == 0 .or. &
             & (State%CP%ModGravity%MG_flag /= 0 .and. State%CP%ModGravity%MGDE_pert)) ) then
             dgrho_de=0
             dgq_de=0
@@ -3071,7 +3071,7 @@
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa + &
                 State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
                                 gpres, w_dark_energy_t, State%grhok, adotoa, &
-                                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)           
+                                EV%kf(1), k, grhov_t, z, k2, ayprime, ay, EV%w_ix)  
         else
             diff_rhopi = pidot_sum - (4*dgpi+ dgpi_diff)*adotoa
         endif
