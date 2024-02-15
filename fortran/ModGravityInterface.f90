@@ -27,50 +27,6 @@ module ModGravityInterface
         !#need to set other QSA models parameters as well
         integer :: CDM_flag = 0
 
-        ! 1. Background quantities
-        !real(dl) :: Hdot
-        !real(dl) :: grhov_t  
-        !real(dl) :: gpresv_t 
-
-        ! 2. Perturbation quantities
-        !real(dl) :: dgpidot
-        !real(dl) :: rhoDelta  
-        !real(dl) :: rhoDeltadot  
-        !real(dl) :: rhoDeltac
-        !real(dl) :: rhoDeltacdot 
-
-        ! 3. MG functions
-        !real(dl) :: mu = 0.
-        !real(dl) :: mudot = 0.
-        !real(dl) :: gamma = 0.
-        !real(dl) :: gammadot = 0.
-        !real(dl) :: q = 0.
-        !real(dl) :: qdot = 0.
-        !real(dl) :: r = 0.
-        !real(dl) :: rdot = 0.
-        !real(dl) :: BigSigma = 0.
-        !real(dl) :: BigSigmadot = 0.
-        !real(dl) :: C_phi = 0.
-        !real(dl) :: C_phidot = 0.
-
-        !> 4. Perturbations evolution variables
-        !real(dl) :: z = 0. ! this z is not the redshift
-        !real(dl) :: sigma = 0.
-        !real(dl) :: sigmadot = 0.
-        !real(dl) :: etadot = 0.
-
-        !> 5. ISW and lensing realted quantities
-        !real(dl) :: MG_alpha = 0.
-        !real(dl) :: MG_alphadot = 0.
-        !real(dl) :: MG_phi = 0.
-        !real(dl) :: MG_phidot = 0.
-        !real(dl) :: MG_psi = 0.
-        !real(dl) :: MG_psidot = 0.
-        !real(dl) :: MG_ISW = 0.
-        !real(dl) :: MG_lensing = 0.
-        !real(dl) :: source1 = 0.
-        !real(dl) :: source3 = 0.
-
         contains
 
         ! subroutines that are really defined within the subtypes
@@ -217,8 +173,7 @@ module ModGravityInterface
         
         this%GRtrans = Ini%Read_Double( 'GRtrans', 0.001d0 )
 
-        ! TODO: ultimately this flag will only be set internally in the Init
-        ! of each child class
+        ! this flag will only be set internally in the Init of each child class
         this%MG_flag = Ini%Read_Int( 'MG_flag', 1 )
         this%MGDE_pert = Ini%Read_Logical( 'MGDE_pert', .false. )
         this%CDM_flag = Ini%Read_Int( 'CDM_flag', 1 )

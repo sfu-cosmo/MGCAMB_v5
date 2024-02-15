@@ -2252,7 +2252,6 @@
     real(dl) MG_phi, MG_psi, MG_phidot, MG_psidot
     real(dl) muall, mucdm 
     real(dl) vc, vcdot 
-    ! TODO: these sources might be for debugging only, keep or remove?
     real(dl) source1, source3
 	real(dl) MGDE_ISW, MG_ISW, MG_lensing
 
@@ -2321,8 +2320,6 @@
 
 
     !> MGCAMB MOD START: switch MG on according to the model (in model 7 GRtrans is replaced by a_star)
-    ! TODO: not needed
-    ! TODO: make a variable called DE_pert and initialise it once and for all
     tempmodel = 0
     if ( State%CP%ModGravity%MG_flag /= 0 .and. a .ge. State%CP%ModGravity%GRtrans ) then
         tempmodel = State%CP%ModGravity%MG_flag
@@ -2641,7 +2638,6 @@
     end if
      !< MGCAMB MOD END
 
-    ! TODO: tempmodel=4 is yet to be restructured
     !  CDM equation of motion
     if ( tempmodel == 4 ) then 
 
@@ -2753,7 +2749,6 @@
 
     ayprime(ix_vb)=vbdot
 
-    ! TODO: tempmodel=4 is not yet restructured
     if ( tempmodel == 4 ) then
 
         if (State%CP%ModGravity%CDM_flag == 1) then  ! CDM QSA
@@ -3077,7 +3072,6 @@
         endif
 
         ! ISW effect
-        ! TODO: camb seems to have its own variable for MGDE_pert: check this is true and reinstate mgcamb checks on DE. CLATOS
 		if ( State%CP%ModGravity%MG_flag /= 0 .and. (.not. EV%is_cosmological_constant) .and. State%CP%ModGravity%MGDE_pert) then
 
 			MGDE_ISW =  State%CP%DarkEnergy%diff_rhopi_Add_Term(dgrho_de, dgq_de, grho, &
@@ -3088,7 +3082,6 @@
 		end if
 
         !> Weyl Potential
-        ! TODO: get rid of tempmodel variable
         if ( tempmodel == 0 ) then
             phi = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + dgpi)/(2*k2)
             psiN = -((dgrho +3*dgq*adotoa/k)/EV%Kf(1) + 2._dl*dgpi)/(2*k2)
@@ -3274,7 +3267,6 @@
             end if
         end if
 
-        ! TODO: put all this stuff into a "write cache" function in the ModGravity structure
        !> MGCAMB MOD START
         if ( State%CP%ModGravity%DebugMGCAMB ) then
             if (associated(EV%OutputSources)) then

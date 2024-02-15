@@ -8,11 +8,6 @@ module MGCAMB
     ! TODO: when some function is not relevant to a parameterization/model
     ! create it and print an error code if it is called
 
-    ! TODO: it's probably better to retain the MG flags somewhere to test what model it is
-
-    ! =========== PURE MG MODELS ============
-
-    ! ============ mu, gamma parameterisation ============
     type, extends(TModGravityModel) :: TMuGammaParameterization
 
         real(dl):: B1 = 1.333d0
@@ -238,9 +233,6 @@ module MGCAMB
     subroutine TMuGammaParameterization_Computesigma( this, a, k, k2, etak, adotoa, dgpi, &
                                                     & mu, gamma, rhoDelta, &
                                                     & sigma, MG_alpha )
-
-        ! TODO: design consideration: maybe mu, gamma, etc should just be computed
-        ! inside each function that needs them
 
         class(TMuGammaParameterization) :: this
         real(dl), intent(in) :: a   !< scale factor
