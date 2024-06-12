@@ -13,7 +13,6 @@ A. Lewis December 2016
 """
 
 import numpy as np
-import os
 from scipy.special import lpn as legendrep
 
 try:
@@ -50,7 +49,7 @@ def legendre_funcs(lmax, x, m=(0, 2), lfacs=None, lfacs2=None, lrootfacs=None):
 
     :param lmax: maximum :math:`\ell`
     :param x: scalar value of :math:`\cos(\theta)` at which to evaluate
-    :param m: m values to calculate :math:`d_{m,n}`, etc as relevant
+    :param m: m values to calculate :math:`d_{m,n}`, etc. as relevant
     :param lfacs: optional pre-computed :math:`\ell(\ell+1)` float array
     :param lfacs2: optional pre-computed :math:`(\ell+2)*(\ell-1)` float array
     :param lrootfacs: optional pre-computed sqrt(lfacs*lfacs2) array
@@ -144,7 +143,7 @@ def cl2corr(cls, xvals, lmax=None):
 
 def gauss_legendre_correlation(cls, lmax=None, sampling_factor=1):
     r"""
-    Transform power specturm cls into correlation functions evaluated at the
+    Transform power spectrum cls into correlation functions evaluated at the
     roots of the Legendre polynomials for Gauss-Legendre quadrature. Returns correlation function array,
     evaluation points and weights.
     Result can be passed to corr2cl for accurate back transform.

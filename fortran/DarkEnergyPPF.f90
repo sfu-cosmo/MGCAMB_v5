@@ -27,7 +27,7 @@
 
     call this%TDarkEnergyEqnOfState%ReadParams(Ini)
     this%cs2_lam = Ini%Read_Double('cs2_lam', 1.d0)
-    if (this%cs2_lam /= 1.d0) error stop 'cs2_lam not supported by PPF model'
+    if (this%cs2_lam /= 1._dl) error stop 'cs2_lam not supported by PPF model'
     call this%setcgammappf
 
     end subroutine TDarkEnergyPPF_ReadParams
@@ -52,7 +52,11 @@
 
     subroutine TDarkEnergyPPF_Init(this, State)
     use classes
+<<<<<<< HEAD
 	use MGCAMB
+=======
+    use config
+>>>>>>> upstream/master
     class(TDarkEnergyPPF), intent(inout) :: this
     class(TCAMBdata), intent(in), target :: State
 
@@ -70,6 +74,8 @@
 			this%num_perturb_equations = 1
 		end if
 	end if
+    if (this%cs2_lam /= 1._dl) &
+        call GlobalError('DarkEnergyPPF does not support varying sound speed',error_unsupported_params)
 
     end subroutine TDarkEnergyPPF_Init
 
