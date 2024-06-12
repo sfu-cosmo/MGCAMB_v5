@@ -735,12 +735,11 @@
 
     end subroutine GetBackgroundThermalEvolution
 
-    !ZW
+    !ZW's edits start
+    !Bigsigma
     function MGCAMB_BigSigma_of_a_and_k(this, a, k)
-
-        ! temporary parameter cache only containing H, rho_DE, k and k2
+        ! temp_mg_cache only containing H, rho_DE, k and k2
         ! this is only for convenience to get Sigma = mu (1+gamma)/2
-
         use MGCAMB
         use results
         use MathUtils
@@ -756,7 +755,7 @@
         procedure(obj_function) :: dtauda
 
         !set MG_flag back to the original input
-        MG_flag = this%CP%MG_flag 
+        call MGCAMB_read_in_MGparams(this%CP)
 
         call MGCAMB_DarkEnergy(a, mgcamb_par_cache, temp_mg_cache)
 
@@ -769,13 +768,73 @@
         ! Get mu and gamma
         mu = MGCAMB_Mu(a, mgcamb_par_cache, temp_mg_cache )
         gamma = MGCAMB_Gamma( a, mgcamb_par_cache, temp_mg_cache )
-        MGCAMB_BigSigma_of_a_and_k = mu*(1._dl+gamma)/2._dl
-
-        ! write(*,*) "Mu value at the end:", mu
-        ! write(*,*) "gamma value at the end:", gamma
-        ! write(*,*) "Sigma value at the end:", MGCAMB_BigSigma_of_a_and_k
+        MGCAMB_BigSigma_of_a_and_k = mu*(1.d0+gamma)/2.d0
 
     end function MGCAMB_BigSigma_of_a_and_k
+
+    !mu
+   function MGCAMB_mu_of_a_and_k(this, a, k)
+        ! temp_mg_cache only containing H, rho_DE, k and k2
+        use MGCAMB
+        use results
+        use MathUtils
+
+        implicit none
+        real(dl), intent(in) :: a
+        real(dl), intent(in) :: k
+        type(CAMBdata), intent(in) :: this
+        type(MGCAMB_timestep_cache) :: temp_mg_cache
+        real(dl) :: mu, gamma
+        real(dl) :: adotoa
+        real(dl) :: MGCAMB_mu_of_a_and_k
+        procedure(obj_function) :: dtauda
+
+        !set MG_flag back to the original input
+        call MGCAMB_read_in_MGparams(this%CP)
+
+        call MGCAMB_DarkEnergy(a, mgcamb_par_cache, temp_mg_cache)
+
+        adotoa = 1.d0/(a*dtauda(this,a))
+
+        temp_mg_cache%adotoa = adotoa
+        temp_mg_cache%k = k
+        temp_mg_cache%k2 = k**2
+
+        MGCAMB_mu_of_a_and_k = MGCAMB_Mu(a, mgcamb_par_cache, temp_mg_cache )
+
+    end function MGCAMB_mu_of_a_and_k
+
+    !gamma 
+   function MGCAMB_gamma_of_a_and_k(this, a, k)
+        ! temp_mg_cache only containing H, rho_DE, k and k2
+        use MGCAMB
+        use results
+        use MathUtils
+
+        implicit none
+        real(dl), intent(in) :: a
+        real(dl), intent(in) :: k
+        type(CAMBdata), intent(in) :: this
+        type(MGCAMB_timestep_cache) :: temp_mg_cache
+        real(dl) :: mu, gamma
+        real(dl) :: adotoa
+        real(dl) :: MGCAMB_gamma_of_a_and_k
+        procedure(obj_function) :: dtauda
+
+        !set MG_flag back to the original input
+        call MGCAMB_read_in_MGparams(this%CP)
+
+        call MGCAMB_DarkEnergy(a, mgcamb_par_cache, temp_mg_cache)
+
+        adotoa = 1.d0/(a*dtauda(this,a))
+
+        temp_mg_cache%adotoa = adotoa
+        temp_mg_cache%k = k
+        temp_mg_cache%k2 = k**2
+
+        MGCAMB_gamma_of_a_and_k = MGCAMB_Gamma(a, mgcamb_par_cache, temp_mg_cache )
+
+    end function MGCAMB_gamma_of_a_and_k
 
     function MGCAMB_rho_tot(this, a)
     !this consists of rho*a^2 by convention in CAMB
@@ -796,8 +855,7 @@
         !no DE perturbation by default
         MGCAMB_rho_tot = 3.d0/(a*dtauda(this,a))**2 - temp_mg_cache%grhov_t
 
-
     end function MGCAMB_rho_tot 
-    !ZW  
+    !ZW's edits end 
 
     end module handles

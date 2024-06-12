@@ -786,51 +786,133 @@ class CAMBdata(F2003Class):
             if (self.Params.MG_flag != 0):
 
                 if (var1.value == c_int(Transfer_tot).value and var2.value == c_int(Transfer_tot).value):
+
                     react, lin_MG, z_react, pseudo = self.Params.NonLinearModel.get_react_function(self, hubble_units=hubble_units, nz=nz, nk=nk, kh=kh, z_lin=z, calc_PK_lin=CAMBdata_GetLinearMatterPower)
-                    PK = PK*react
 
-                    print("nonlinear delta-delta is being used")
+                    #complements z higher than z_react = 2.5 with pseudo PK
+                    if (len(z)>len(z_react)):
+                        
+                        z_lin_ind = len(z_react)
 
-                elif (var1.value == c_int(Transfer_Weyl).value and var2.value == c_int(Transfer_Weyl).value):
+                        PK_non_cut = np.empty((z_lin_ind, nk))
+                        # PK_lin = np.empty((nz, nk))
+
+                        #pseudo PK from above
+                        PK_non_cut = PK[:z_lin_ind, :]
+                        PK_non_cut = PK_non_cut*react
+
+                        #use linear for above z_react
+                        # CAMBdata_GetLinearMatterPower(byref(self), PK_lin, byref(var1), byref(var2), byref(hubble_units))
+                        # PK_lin_cut = PK_lin[z_lin_ind:, :]
+                        # PK = np.concatenate((PK_non_cut,PK_lin_cut), axis = 0)
+
+                        #use pseudo only for above z_react
+                        PK_pseudo_cut = PK[z_lin_ind:, :]
+                        PK = np.concatenate((PK_non_cut,PK_pseudo_cut), axis = 0)
+
+                    
+                    else:
+                        PK = PK*react
+
+
+                elif (var1.value == c_int(Transfer_Weyl).value and var2.value == c_int(Transfer_Weyl).value) or (var1.value == c_int(Transfer_tot).value and var2.value == c_int(Transfer_Weyl).value) or (var1.value == c_int(Transfer_Weyl).value and var2.value == c_int(Transfer_tot).value):
+
+                    try:
+                        if (var1.value == c_int(Transfer_Weyl).value and var2.value == c_int(Transfer_Weyl).value):
+                            get_weyl = "weyl-weyl"
+                        else: 
+                            get_weyl = "matter-weyl"
+                    except Exception as e:
+                        print(e)
 
                     PK = np.empty((nz, nk))
-                    rescale_fac  = np.empty((nz, nk))
                     CAMBdata_GetNonLinearMatterPower(byref(self), PK, byref(c_int(Transfer_tot)), byref(c_int(Transfer_tot)), byref(hubble_units))
                     react, lin_MG, z_react, pseudo = self.Params.NonLinearModel.get_react_function(self, hubble_units=hubble_units, nz=nz, nk=nk, kh=kh, z_lin=z, calc_PK_lin=CAMBdata_GetLinearMatterPower) 
 
+                    #complements z higher than z_react = 2.5 with pseudo PK
+                    if (len(z)>len(z_react)):
+                        
+                        z_lin_ind = len(z_react)
+                        rescale_fac  = np.empty((z_lin_ind, nk))
 
-                    for count_z, zi in enumerate(z):
-                        ai = 1.0/(1.0 + zi)
-                        for count_k, ki in enumerate(kh):
-                            rescale_fac[count_z][count_k] = self.get_Sigma_function(ai,ki) * self.get_rho_tot(ai)/2.0
+                        PK_non_cut = np.empty((z_lin_ind, nk))
+                        # PK_lin = np.empty((nz, nk))
+                        PK_pseudo = np.empty((nz, nk))
 
-                    PK = PK*react*rescale_fac**2
+                        #pseudo PK from above
+                        PK_non_cut = PK[:z_lin_ind, :]
+                        for count_z, zi in enumerate(z_react):
+                            ai = 1.0/(1.0 + zi)
+                            for count_k, ki in enumerate(kh):
+                                rescale_fac[count_z][count_k] = -self.get_Sigma_function(ai,ki) * self.get_rho_tot(ai)/2.0    
 
-                    print("nonlinear weyl-weyl is being used")
+                        if get_weyl == "weyl-weyl":                    
+                            PK_non_cut = PK_non_cut*react*rescale_fac**2
+                        elif get_weyl == "matter-weyl":
+                            PK_non_cut = PK_non_cut*react*rescale_fac
+                        else:
+                            raise Exception("not using the correct type of weyl power spectrum")
+
+                        #use linear for above z_react
+                        # CAMBdata_GetLinearMatterPower(byref(self), PK_lin, byref(var1), byref(var2), byref(hubble_units))
+                        # PK_lin_cut = PK_lin[z_lin_ind:, :]
+                        # PK = np.concatenate((PK_non_cut,PK_lin_cut), axis = 0)
+                      
+                        #use pseudo of weyl only for above z_react
+                        CAMBdata_GetNonLinearMatterPower(byref(self), PK_pseudo, byref(var1), byref(var2), byref(hubble_units))
+                        PK_pseudo_cut = PK_pseudo[z_lin_ind:, :]
+                        PK = np.concatenate((PK_non_cut,PK_pseudo_cut), axis = 0)
+                      
+                    else:
+                 
+                        rescale_fac  = np.empty((nz, nk))
+                        for count_z, zi in enumerate(z):
+                            ai = 1.0/(1.0 + zi)
+                            for count_k, ki in enumerate(kh):
+                                rescale_fac[count_z][count_k] = -self.get_Sigma_function(ai,ki) * self.get_rho_tot(ai)/2.0
+
+                        if get_weyl == "weyl-weyl": 
+                            PK = PK*react*rescale_fac**2
+                        elif get_weyl == "matter-weyl":
+                            PK = PK*react*rescale_fac
+                        else:
+                            raise Exception("not using the correct type of weyl power spectrum")
 
                 else:
-                    raise Exception("nonlinear power spectrum for MG models only supported for matter-matter and Weyl-Weyl currently.")            
+                    raise Exception("nonlinear power spectrum for MG models only supported for matter-matter, Weyl-Weyl and matter-Weyl currently.")            
             else:
                 #LCDM
                 PK = PK
-                pseudo = 0.
 
-            # output = np.vstack((kh, lin_MG[0])).T
-            # np.savetxt('/home/zavier/ACTio-ReACTio/MGCAMB/lin_pk_from_results.txt', output)
+
         #ZW's edit ends
-            return kh, np.array(z), PK, pseudo
+            return kh, np.array(z), PK
 
         else:
             CAMBdata_GetLinearMatterPower(byref(self), PK, byref(var1), byref(var2), byref(hubble_units))
 
-
             return kh, np.array(z), PK
     
+    #ZW's edits start
     def get_Sigma_function(self, a, k):
 
         a = c_double(a)
         k = c_double(k)
         res = MGCAMB_BigSigma_of_a_and_k(byref(self), byref(a), byref(k))
+        return res
+    
+    def get_mu_function(self, a, k):
+
+        a = c_double(a)
+        k = c_double(k)
+        res = MGCAMB_mu_of_a_and_k(byref(self), byref(a), byref(k))
+        return res
+    
+    def get_gamma_function(self, a, k):
+
+        a = c_double(a)
+        k = c_double(k)
+        res = MGCAMB_gamma_of_a_and_k(byref(self), byref(a), byref(k))
         return res
     
     def get_rho_tot(self, a):
@@ -839,7 +921,7 @@ class CAMBdata(F2003Class):
         res = MGCAMB_rho_tot(byref(self), byref(a))
         return res
     
-    #ZW
+    #ZW's edits end
 
 
     def get_nonlinear_matter_power_spectrum(self, var1=None, var2=None, hubble_units=True, k_hunit=True,
@@ -1063,7 +1145,7 @@ class CAMBdata(F2003Class):
         assert self.Params.WantTransfer
         #ZW
         if nonlinear:
-            khs, zs, pk, _ = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
+            khs, zs, pk = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
         else:
             khs, zs, pk = self.get_linear_matter_power_spectrum(var1, var2, hubble_units, nonlinear=nonlinear)
         #ZW
@@ -1761,11 +1843,20 @@ CAMB_BackgroundThermalEvolution.argtypes = [POINTER(CAMBdata), int_arg, numpy_1d
 CAMB_GetBackgroundOutputs = camblib.__handles_MOD_camb_getbackgroundoutputs
 CAMB_GetBackgroundOutputs.argtypes = [POINTER(CAMBdata), numpy_1d, int_arg]
 
-#ZW
+#ZW's edits start
 MGCAMB_BigSigma_of_a_and_k = camblib.__handles_MOD_mgcamb_bigsigma_of_a_and_k
 MGCAMB_BigSigma_of_a_and_k.argtypes = [POINTER(CAMBdata), POINTER(c_double), POINTER(c_double)]
 MGCAMB_BigSigma_of_a_and_k.restype = c_double
 
+MGCAMB_mu_of_a_and_k = camblib.__handles_MOD_mgcamb_mu_of_a_and_k
+MGCAMB_mu_of_a_and_k.argtypes = [POINTER(CAMBdata), POINTER(c_double), POINTER(c_double)]
+MGCAMB_mu_of_a_and_k.restype = c_double
+
+MGCAMB_gamma_of_a_and_k = camblib.__handles_MOD_mgcamb_gamma_of_a_and_k
+MGCAMB_gamma_of_a_and_k.argtypes = [POINTER(CAMBdata), POINTER(c_double), POINTER(c_double)]
+MGCAMB_gamma_of_a_and_k.restype = c_double
+
 MGCAMB_rho_tot = camblib.__handles_MOD_mgcamb_rho_tot
 MGCAMB_rho_tot.argtypes = [POINTER(CAMBdata), POINTER(c_double)]
 MGCAMB_rho_tot.restype = c_double
+#ZW's edits end

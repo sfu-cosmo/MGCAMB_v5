@@ -476,9 +476,12 @@ contains
 
             !> Calculate the Newtonian potential  
             mg_cache%MG_psi = - mg_cache%mu * ( mg_cache%rhoDelta + 2._dl* mg_cache%dgpi)/(2._dl*mg_cache%k2) 
-
+            ! testing
+            ! mg_cache%MG_psi = - mg_cache%mu * ( mg_cache%rhoDelta)/(2._dl*mg_cache%k2) 
             !> calculate the curvature perturbation potential 
             mg_cache%MG_phi = mg_cache%gamma * mg_cache%MG_psi + mg_cache%mu* 1._dl*mg_cache%dgpi/mg_cache%k2 
+            !testing
+            ! mg_cache%MG_phi = mg_cache%gamma * mg_cache%MG_psi 
 
             mg_cache%MG_phidot = mg_cache%etadot - mg_cache%adotoa * (mg_cache%MG_psi - mg_cache%adotoa * mg_cache%MG_alpha) &
                                 & - mg_cache%Hdot * mg_cache%MG_alpha  

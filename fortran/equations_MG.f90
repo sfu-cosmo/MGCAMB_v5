@@ -2255,6 +2255,8 @@
     real(dl) m2,beta2
     real(dl) MG_alpha
     real(dl) muall, mucdm 
+    !!for weyl tests
+    real(dl) mg_gamma, BigSigma
 
     real(dl) vc, vcdot 
 	real(dl) MGDE_ISW, w_MGDE   
@@ -2415,6 +2417,12 @@
 
     !  8*pi*a*a*SUM[rho_i*clx_i] - radiation terms
     dgrho=dgrho + grhog_t*clxg+grhor_t*clxr
+    !test
+    ! if (a .ge. 0.5d0) then 
+    !     dgrho=dgrho 
+    ! else 
+    !     dgrho=dgrho + grhog_t*clxg+grhor_t*clxr
+    ! end if 
 
     !  8*pi*a*a*SUM[(rho_i+p_i)*v_i]
     dgq=dgq + grhog_t*qg+grhor_t*qr
@@ -2485,6 +2493,7 @@
         mgcamb_cache%dgpi_w_sum = dgpi_w_sum
         mgcamb_cache%dgpi       = dgpi
         mgcamb_cache%rhoDelta   = dgrho + 3._dl * adotoa * dgq/ k
+        !mgcamb_cache%rhoDelta   = dgrho 
         mgcamb_cache%rhoDeltac  = dgrhoc + 3._dl * adotoa * dgqc/ k
         mgcamb_cache%dgqc       = dgqc      
 
@@ -2498,6 +2507,9 @@
 
         mu = mgcamb_cache%mu
         mudot = mgcamb_cache%mudot
+        !test
+        mg_gamma = mgcamb_cache%gamma
+        BigSigma = mu*(1.d0+mg_gamma)/2.d0
 
         beta2 = beta**2
         m2 = m**2
@@ -3160,7 +3172,11 @@
             EV%OutputTransfer(Transfer_Newt_vel_cdm)=  -k*(vc+sigma)/adotoa
             EV%OutputTransfer(Transfer_Newt_vel_baryon) = -k*(vb + sigma)/adotoa
             EV%OutputTransfer(Transfer_vel_baryon_cdm) = vb - vc
-
+            if ( tempmodel == 0 ) then
+                EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*dgrho_matter
+            else
+                EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*BigSigma*dgrho_matter
+            end if
 
             if (State%CP%do21cm) then
                 Tspin = State%CP%Recomb%T_s(a)

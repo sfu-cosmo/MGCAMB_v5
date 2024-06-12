@@ -78,7 +78,7 @@ class Halofit(NonLinearModel):
 
         Params = CAMBdata.Params
         mymodel = "mgcamb_minimal"
-        num_pars = 48
+        num_pars = 49
         extrapars = np.zeros(num_pars)     
         extrapars[0] = Params.w0DE
         extrapars[1] = Params.waDE
@@ -127,6 +127,9 @@ class Halofit(NonLinearModel):
         extrapars[45] = Params.Funcofw_9
         extrapars[46] = Params.Funcofw_10
         extrapars[47] = Params.Funcofw_11
+        #pass h to react for for conversion in mu models
+        h = Params.H0/100
+        extrapars[48] = h
 
         #MG flags
         MG_flag = Params.MG_flag
@@ -142,7 +145,6 @@ class Halofit(NonLinearModel):
         flagarr = [MG_flag, pure_MG_flag, alt_MG_flag, QSA_flag, CDM_flag, muSigma_flag, mugamma_par, musigma_par, DE_model]
 
         Omega_m = Params.omegam
-        h = Params.H0/100
         Omega_b = Params.ombh2/h**2
         Omega_nu = Params.omnuh2/h**2
         n_s = Params.InitPower.ns
@@ -155,11 +157,13 @@ class Halofit(NonLinearModel):
         #Now run ReACT to get the reaction and the modified gravity linear power spectrum
         react = pyreact.ReACT()
         z_lin = np.array(z_lin)
-        
-        #ZW
-        print("original size of z:", len(z_lin))
+
         z_react = z_lin[z_lin < 2.5]
-        print("size of z in react:", len(z_react))
+        z_lin_ind = len(z_react)
+        PK_lin_tot_cut = PK_lin_tot[:z_lin_ind, :]
+        PK_lin_cb_cut = PK_lin_cb[:z_lin_ind, :]
+        PK_lcdm_cb_cut = PK_lcdm_cb[:z_lin_ind, :]
+
         massloop = 30
 
         #setting wrappers
@@ -168,13 +172,11 @@ class Halofit(NonLinearModel):
 
         #make sure to call reconstruction ahead
         react.get_reconstruction_arr(Omega_m)
-        react.printMGflags_wrapper()
-        react.printMGparams_wrapper()
 
         react, pofk_lin_MG_react, sigma_8, pseudo = react.compute_reaction_nu_ext(
                                         h, n_s, Omega_m, Omega_b, Omega_nu, A_s, 
-                                        z_react, kh, PK_lin_tot, PK_lin_cb,
-                                        kh, PK_lcdm_cb, 
+                                        z_react, kh, PK_lin_tot_cut.flatten(), PK_lin_cb_cut.flatten(),
+                                        kh, PK_lcdm_cb_cut.flatten(), 
                                         pscale = 0.05,
                                         model=mymodel, 
                                         extpars=extrapars,
@@ -210,7 +212,7 @@ class Halofit(NonLinearModel):
 
         calc_PK_lin(byref(new_CAMBdata), PK_lcdm_cb_in, byref(Transfer_nonu), byref(Transfer_nonu), byref(hubble_units))
 
-        return PK_lin_tot_in.flatten(), PK_lin_cb_in.flatten(), PK_lcdm_cb_in.flatten()
+        return PK_lin_tot_in, PK_lin_cb_in, PK_lcdm_cb_in
 
     #ZW
     def set_params(self, halofit_version=halofit_default, HMCode_A_baryon=3.13, HMCode_eta_baryon=0.603,
@@ -245,9 +247,6 @@ class Halofit(NonLinearModel):
         self.p2 = p2
         self.p3 = p3
         self.p4 = p4
-
-
-
 
 
 @fortran_class
