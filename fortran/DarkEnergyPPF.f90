@@ -52,11 +52,8 @@
 
     subroutine TDarkEnergyPPF_Init(this, State)
     use classes
-<<<<<<< HEAD
 	use MGCAMB
-=======
     use config
->>>>>>> upstream/master
     class(TDarkEnergyPPF), intent(inout) :: this
     class(TCAMBdata), intent(in), target :: State
 
