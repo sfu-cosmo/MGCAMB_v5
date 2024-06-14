@@ -5,12 +5,11 @@ WRAPPER_LIB = libreact_wrapper.so
 
 CFLAGS += -fPIC
 CXXFLAGS += -Wall -fPIC -std=c++11
-#LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial
+LDFLAGS  += -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial
 
-LDFLAGS = -L/home/zavier/.local/easybuild/software/2020/avx2/MPI/gcc9/openmpi4/sundials/4.1.0/lib64 -lgsl -lgslcblas -lsundials_cvode -lsundials_nvecserial 
-CPPFLAGS = -I/home/zavier/.local/easybuild/software/2020/avx2/MPI/gcc9/openmpi4/sundials/4.1.0/include
-CC=gcc
-CXX=g++
+LDFLAGS +=
+CPPFLAGS +=
+
 
 # clang uses a different libstdc++ than GCC. Also remove OpenMP when using clang
 ifneq (,$(findstring clang,$(shell '$(CXX)' -v 2>&1)))
