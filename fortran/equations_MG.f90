@@ -3172,11 +3172,11 @@
             EV%OutputTransfer(Transfer_Newt_vel_cdm)=  -k*(vc+sigma)/adotoa
             EV%OutputTransfer(Transfer_Newt_vel_baryon) = -k*(vb + sigma)/adotoa
             EV%OutputTransfer(Transfer_vel_baryon_cdm) = vb - vc
-            if ( tempmodel == 0 ) then
-                EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*dgrho_matter
-            else
-                EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*BigSigma*dgrho_matter
-            end if
+            ! if ( tempmodel == 0 ) then
+            !     EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*dgrho_matter
+            ! else
+            !     EV%OutputTransfer(Transfer_test_Weyl) =  -1.d0/2.d0*BigSigma*dgrho_matter
+            ! end if
 
             if (State%CP%do21cm) then
                 Tspin = State%CP%Recomb%T_s(a)

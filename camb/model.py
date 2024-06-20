@@ -35,8 +35,7 @@ Transfer_Weyl = 10
 Transfer_Newt_vel_cdm = 11
 Transfer_Newt_vel_baryon = 12
 Transfer_vel_baryon_cdm = 13
-Transfer_test_Weyl = 14
-Transfer_max = Transfer_test_Weyl
+Transfer_max = Transfer_vel_baryon_cdm
 
 # for 21cm case
 Transfer_monopole = 4
