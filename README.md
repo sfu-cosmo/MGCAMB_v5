@@ -154,8 +154,9 @@ $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/MGCAMB/ACTio-ReACTio/reaction
 
 `Note`: Please refer to the original repository of [ReACT](https://github.com/nebblu/ACTio-ReACTio) for more detailed instructions on the installation steps.
 
-Second, compile the whole MGCAMB package with: 
+Second, compile the whole MGCAMB package at `NL_ext` branch: 
 ```bash
+git checkout NL_ext
 python setup.py make
 ```
 
