@@ -91,10 +91,10 @@
             this%num_perturb_equations = 2
         end if
 	else
-		if (MGDE_const) then
-			this%num_perturb_equations = 0
-		else
+		if (MGDE_const .and. MGDE_pert) then
 			this%num_perturb_equations = 2
+		else
+			this%num_perturb_equations = 0
 		end if
 	end if
     end subroutine TDarkEnergyFluid_Init
